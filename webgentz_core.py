@@ -50,7 +50,7 @@ TOOL_LOCATIONS = {
     "Bash": "forge", "BashOutput": "forge", "KillShell": "forge", "shell": "forge",
     "Task": "barracks", "Agent": "barracks",
     "TodoWrite": "townhall", "ExitPlanMode": "townhall",
-    "llm_call": "library",
+    "llm_call": "townhall",
 }
 
 LOCATION_ACTIVITY = {
