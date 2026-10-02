@@ -1,11 +1,11 @@
 :root {
-  --ink: #202028;
-  --paper: #f8f8f0;
-  --frame: #383848;
-  --bg: #2c3a2c;
-  --accent: #e83838;
-  --muted: #686878;
-  --bar: #58a8f8;
+  --ink: #14201a;
+  --paper: #f5f2e3;
+  --frame: #2a3d2f;
+  --bg: #11231a;
+  --accent: #e8743b;
+  --muted: #5f6e62;
+  --bar: #e8a53b;
   --pixel: "Press Start 2P", ui-monospace, monospace;
 }
 
@@ -56,7 +56,7 @@ canvas {
   image-rendering: crisp-edges;
   border: 4px solid var(--frame);
   border-radius: 6px;
-  background: #78c850;
+  background: #2f6b45;
   cursor: pointer;
 }
 
@@ -65,7 +65,7 @@ canvas {
   background: var(--paper);
   border: 4px solid var(--frame);
   border-radius: 8px;
-  box-shadow: inset 0 0 0 3px #d0d0c8;
+  box-shadow: inset 0 0 0 3px #d9d3b8;
 }
 .textbox {
   margin-top: 12px;
@@ -84,7 +84,7 @@ canvas {
 .panel h3 { font-size: 10px; margin: 18px 0 8px; color: var(--muted); }
 
 #roster { list-style: none; padding: 0; margin: 0; }
-#roster li {
+#roster li.member {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -92,7 +92,15 @@ canvas {
   border-radius: 4px;
   cursor: pointer;
 }
-#roster li:hover, #roster li:focus { background: #e8e8d8; outline: none; }
+#roster li.member:hover, #roster li.member:focus { background: #e6e0c6; outline: none; }
+#roster li.layer-head {
+  font-size: 8px;
+  color: var(--muted);
+  border-left: 4px solid;
+  padding: 2px 0 2px 8px;
+  margin: 14px 0 4px;
+}
+#roster li.layer-head:first-child { margin-top: 0; }
 #roster .dot { width: 12px; height: 12px; border: 2px solid var(--ink); flex: none; }
 #roster .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #roster .what { color: var(--muted); font-size: 8px; display: block; }

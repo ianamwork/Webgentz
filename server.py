@@ -1,7 +1,7 @@
 """Webgentz world server.
 
 Receives events from Claude Code hooks, keeps track of every agent,
-stores the history in SQLite, and serves the village web page.
+stores the history in SQLite, and serves the jungle web page.
 
 Run it with:  python3 server.py
 Then open:    http://localhost:8765
@@ -25,6 +25,7 @@ PORT = int(os.environ.get("WEBGENTZ_PORT", "8765"))
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "web"
 DB_PATH = Path(os.environ.get("WEBGENTZ_DB", ROOT / "webgentz.db"))
+CONFIG_PATH = Path(os.environ.get("WEBGENTZ_CONFIG", ROOT / "webgentz.json"))
 
 # An agent with no events for this long is shown asleep.
 SLEEP_AFTER_SECONDS = 10 * 60
@@ -51,6 +52,52 @@ BUILDING_ACTIVITY = {
     "market": "trading with an outside tool",
     "square": "working",
 }
+
+
+# The three layers of the jungle, from the ground up.
+LAYERS = ("roots", "understory", "canopy")
+
+
+class Config:
+    """Reads webgentz.json, which says which projects live on which layer.
+
+    Example:
+        {"default_layer": "understory",
+         "layers": {"infra": "roots", "webgentz": "understory", "sales": "canopy"}}
+
+    Each key under "layers" is matched against the agent's project folder
+    (case does not matter, part of the path is enough). The file is re-read
+    whenever it changes, so you can edit it while the server runs.
+    """
+
+    def __init__(self, path):
+        self.path = path
+        self.mtime = None
+        self.data = {}
+
+    def _load(self):
+        try:
+            mtime = self.path.stat().st_mtime
+        except OSError:
+            self.data, self.mtime = {}, None
+            return
+        if mtime != self.mtime:
+            try:
+                self.data = json.loads(self.path.read_text() or "{}")
+            except (OSError, json.JSONDecodeError) as exc:
+                print(f"Could not read {self.path}: {exc}")
+                self.data = {}
+            self.mtime = mtime
+
+    def layer_for(self, cwd):
+        self._load()
+        rules = self.data.get("layers") or {}
+        folder = (cwd or "").lower()
+        for key, layer in rules.items():
+            if key.lower() in folder and layer in LAYERS:
+                return layer
+        default = self.data.get("default_layer")
+        return default if default in LAYERS else "understory"
 
 
 # ---------------------------------------------------------------- storage
@@ -169,6 +216,8 @@ class World:
             project = os.path.basename(cwd.rstrip("/")) or "agent"
             agent = {
                 "id": sid,
+                "agent_type": event.get("agent_type") or "claude-code",
+                "layer": event.get("layer") if event.get("layer") in LAYERS else config.layer_for(cwd),
                 "name": f"{project}-{sid[:4]}",
                 "project": project,
                 "cwd": cwd,
@@ -195,11 +244,15 @@ class World:
             agent["last_seen"] = event["received"]
             if event.get("cwd"):
                 agent["cwd"] = event["cwd"]
+            if event.get("agent_type"):
+                agent["agent_type"] = event["agent_type"]
+            if event.get("layer") in LAYERS:
+                agent["layer"] = event["layer"]
             line = kind
 
             if kind == "SessionStart":
                 agent.update(status="idle", location="square", activity="just arrived", detail="")
-                line = "Arrived in the village"
+                line = "Arrived in the jungle"
             elif kind == "UserPromptSubmit":
                 agent["prompts"] += 1
                 prompt = short_text(event.get("prompt"), 70)
@@ -225,14 +278,16 @@ class World:
             elif kind == "SubagentStop":
                 line = "A helper finished its task"
             elif kind == "SessionEnd":
-                agent.update(status="gone", location="gate", activity="left the village", detail="")
-                line = "Left the village"
+                agent.update(status="gone", location="gate", activity="left the jungle", detail="")
+                line = "Left the jungle"
 
             # Demo events carry tokens directly; real ones are read from the transcript.
             if isinstance(event.get("tokens"), dict):
                 agent["tokens"] = {**agent["tokens"], **event["tokens"]}
             if event.get("model"):
                 agent["model"] = event["model"]
+            if event.get("name"):
+                agent["name"] = short_text(event["name"], 40)
             if event.get("transcript_path") and kind in ("SessionStart", "PostToolUse", "Stop", "SessionEnd", "UserPromptSubmit"):
                 tokens, model = read_token_usage(event["transcript_path"])
                 if any(tokens.values()):
@@ -285,6 +340,7 @@ class Broadcaster:
                     self.clients.discard(q)
 
 
+config = Config(CONFIG_PATH)
 store = Store(DB_PATH)
 world = World()
 broadcaster = Broadcaster()
@@ -304,7 +360,7 @@ def ingest(raw):
         raise ValueError("event needs a session_id")
     event = {k: raw[k] for k in (
         "session_id", "hook_event_name", "cwd", "transcript_path", "tool_name",
-        "tool_input", "prompt", "message", "source", "tokens", "model",
+        "tool_input", "prompt", "message", "source", "tokens", "model", "agent_type", "layer", "name",
     ) if k in raw}
     event["session_id"] = str(event["session_id"])
     event["received"] = time.time()
@@ -391,12 +447,12 @@ def main():
         world.apply(event)
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     server.daemon_threads = True
-    print(f"Webgentz village is open at http://{HOST}:{PORT}  (Ctrl+C to close)")
+    print(f"Webgentz jungle is open at http://{HOST}:{PORT}  (Ctrl+C to close)")
     print(f"Saving history to {DB_PATH}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nVillage closed.")
+        print("\nJungle closed.")
         sys.exit(0)
 
 

@@ -1,4 +1,4 @@
-// Demo mode: invents a few busy agents so you can see the village without
+// Demo mode: invents a few busy agents so you can see the jungle without
 // running Claude Code. Open the page with ?demo at the end of the address.
 // The fake agents look exactly like what server.py sends.
 
@@ -15,11 +15,15 @@ window.WebgentzDemo = (() => {
     { tool: "TodoWrite", location: "townhall", activity: "planning", things: ["plan the week"] },
   ];
 
+  // One crew per layer of the tree: infrastructure, product, and GTM.
   const CREW = [
-    { project: "webgentz", job: "Build the village" },
-    { project: "sales-outreach", job: "Draft follow-ups for 20 leads" },
-    { project: "market-research", job: "Compare agent observability tools" },
-    { project: "thesis-data", job: "Clean the survey data in R" },
+    { project: "infra-terraform", type: "claude-code", layer: "roots", job: "Set up the database backups" },
+    { project: "api-server", type: "codex", layer: "roots", job: "Speed up the slow /events endpoint" },
+    { project: "webgentz-app", type: "claude-code", layer: "understory", job: "Build the jungle view" },
+    { project: "onboarding-flow", type: "openai", layer: "understory", job: "Fix the signup form bugs" },
+    { project: "sales-outreach", type: "gtm", layer: "canopy", job: "Draft follow-ups for 20 leads" },
+    { project: "market-research", type: "research", layer: "canopy", job: "Compare agent observability tools" },
+    { project: "launch-posts", type: "python", layer: "canopy", job: "Write the launch thread" },
   ];
 
   const pick = list => list[Math.floor(Math.random() * list.length)];
@@ -32,6 +36,8 @@ window.WebgentzDemo = (() => {
       id,
       name: `${member.project}-${id.slice(0, 4)}`,
       project: member.project,
+      agent_type: member.type,
+      layer: member.layer,
       cwd: `~/code/${member.project}`,
       model: pick(["claude-opus-5-5", "claude-sonnet-5-5"]),
       status: "idle",
@@ -91,7 +97,7 @@ window.WebgentzDemo = (() => {
           setTimeout(loop, 2500 + Math.random() * 4500);
         };
         setTimeout(loop, 2000 + Math.random() * 3000);
-      }, 600 + i * 1400);
+      }, 400 + i * 900);
     });
   }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Webgentz Village</title>
+  <title>Webgentz Jungle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
@@ -14,14 +14,15 @@
     <div class="stats">
       <span id="hud-agents">0 agents</span>
       <span id="hud-tokens">0 tokens</span>
+      <span id="hud-health">tree thriving</span>
       <span id="hud-mode" class="mode"></span>
     </div>
   </header>
 
   <main class="layout">
     <section class="world-wrap">
-      <canvas id="world" width="576" height="320" aria-label="Village map with your agents"></canvas>
-      <div class="textbox" id="ticker">Welcome to the village!</div>
+      <canvas id="world" width="576" height="384" aria-label="Jungle tree with your agents on its layers"></canvas>
+      <div class="textbox" id="ticker">Welcome to the jungle!</div>
     </section>
 
     <aside class="panel" id="panel">
@@ -39,6 +40,8 @@
         <h2 id="a-name"></h2>
         <div class="badge" id="a-status"></div>
         <dl class="facts">
+          <dt>Kind</dt><dd id="a-kind"></dd>
+          <dt>Where</dt><dd id="a-layer"></dd>
           <dt>Doing</dt><dd id="a-activity"></dd>
           <dt>Detail</dt><dd id="a-detail"></dd>
           <dt>Project</dt><dd id="a-project"></dd>

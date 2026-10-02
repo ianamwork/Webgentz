@@ -1,8 +1,8 @@
-"""Claude Code hook that reports what an agent is doing to the Webgentz village.
+"""Claude Code hook that reports what an agent is doing to the Webgentz jungle.
 
 Claude Code runs this script on each hook event and passes a JSON description
 of the event on stdin. We forward it to the local server and exit straight
-away. If the village is not running, we stay silent so Claude Code is never
+away. If the jungle server is not running, we stay silent so Claude Code is never
 slowed down or interrupted.
 """
 
