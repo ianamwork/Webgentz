@@ -253,7 +253,46 @@ class LayerConfigTests(unittest.TestCase):
         self.assertEqual(LayerConfig().layer_for("/anything"), "understory")
 
 
+class AnswerAndOpenTests(unittest.TestCase):
+    def test_the_last_reply_in_the_transcript_becomes_the_answer(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "s.jsonl")
+            with open(path, "w") as f:
+                for i, content in enumerate([[{"type": "text", "text": "Looking now."}],
+                                             [{"type": "text", "text": "All 12 tests pass."}],
+                                             [{"type": "tool_use", "name": "Bash"}]]):
+                    f.write(json.dumps({"type": "assistant", "message": {
+                        "id": f"m{i}", "content": content, "usage": {"input_tokens": 1}}}) + "\n")
+            world = World()
+            world.apply(hook("UserPromptSubmit", prompt="run the tests", transcript_path=path))
+            agent, _ = world.apply(hook("Stop", at=T0 + 90, transcript_path=path))
+        self.assertEqual(agent["answer"], "All 12 tests pass.")
+        self.assertEqual((agent["task_started"], agent["finished_at"]), (T0, T0 + 90))
+
+    def test_a_new_prompt_clears_the_old_answer(self):
+        world = World()
+        world.apply(standard("done", answer="Report written."))
+        agent, _ = world.apply(standard("prompt", prompt="again"))
+        self.assertEqual(agent["answer"], "")
+        self.assertIsNone(agent["finished_at"])
+
+    def test_open_is_checked_and_remembered(self):
+        world = World()
+        world.apply(standard("start", open={"app": "Terminal", "tty": "/dev/ttys003"}))
+        agent, _ = world.apply(standard("prompt", prompt="hi"))
+        self.assertEqual(agent["open"], {"app": "Terminal", "tty": "/dev/ttys003"})
+        for bad in ({"app": "Calculator; rm -rf"}, {"tty": "/etc/passwd"}, {"url": "file:///etc/passwd"},
+                    {"url": "javascript:alert(1)"}, "Terminal"):
+            with self.assertRaises(EventError):
+                standard("start", open=bad)
+
+
 class HookTests(unittest.TestCase):
+    def test_the_hook_says_which_app_it_runs_in(self):
+        from webgentz_hook import where_am_i
+        self.assertEqual(where_am_i({"__CFBundleIdentifier": "com.microsoft.VSCode"}), {"app": "Visual Studio Code"})
+        self.assertEqual(where_am_i({"TERM_PROGRAM": "unknown"}), {})
+
     def test_claude_code_helper_type_does_not_change_the_animal(self):
         from webgentz_hook import transform
         e = normalize_event(transform({"session_id": "s", "hook_event_name": "PreToolUse",

@@ -30,8 +30,8 @@ class RecordingAgent:
     def prompt(self, task):
         self._send("prompt", prompt=task)
 
-    def done(self):
-        self._send("done")
+    def done(self, answer=None):
+        self._send("done", answer=answer)
 
 
 def line(kind, payload):
@@ -59,6 +59,7 @@ class CodexTests(unittest.TestCase):
                 "input_tokens": 1200, "cached_input_tokens": 1000, "output_tokens": 80,
                 "reasoning_output_tokens": 40, "total_tokens": 1280}}}))
             f.write(line("response_item", {"type": "custom_tool_call", "name": "apply_patch", "input": "*** Begin Patch"}))
+            f.write(line("event_msg", {"type": "agent_message", "message": "The endpoint is 4x faster now."}))
             f.write(line("event_msg", {"type": "task_complete"}))
         session = codex_watch.Session(self.path)
         session.read_new_lines()
@@ -77,6 +78,7 @@ class CodexTests(unittest.TestCase):
         self.assertEqual(agent["tool_counts"], {"shell": 1, "apply_patch": 1})
         self.assertEqual(agent["tokens"]["cache_read"], 1000)
         self.assertEqual(agent["location"], "campfire")
+        self.assertEqual(agent["answer"], "The endpoint is 4x faster now.")
 
     def test_half_written_lines_wait(self):
         text = line("session_meta", {"id": "t-9", "cwd": "/x"})

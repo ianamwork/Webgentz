@@ -91,6 +91,37 @@ class ServerTests(unittest.TestCase):
             daily = server.store.db.execute("SELECT COUNT(*) FROM daily WHERE session_id='old'").fetchone()[0]
         self.assertEqual((events, daily), (0, 1))
 
+    def test_other_websites_cannot_post(self):
+        req = urllib.request.Request(self.base + "/api/open", data=b'{"id": "x"}',
+                                     headers={"Content-Type": "application/json", "Origin": "https://evil.example"})
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req)
+        self.assertEqual(ctx.exception.code, 403)
+
+    def test_open_command_for_each_kind_of_place(self):
+        cmd, label = server.open_command({"open": {"app": "Terminal", "tty": "/dev/ttys003"}}, "darwin")
+        self.assertEqual((cmd[0], cmd[-1], label), ("osascript", "/dev/ttys003", "Terminal"))
+        cmd, _ = server.open_command({"open": {"app": "Cursor"}, "cwd": os.getcwd()}, "darwin")
+        self.assertEqual(cmd, ["open", "-a", "Cursor", os.getcwd()])
+        cmd, label = server.open_command({"open": {"url": "https://example.com/run/1"}}, "darwin")
+        self.assertEqual((cmd, label), (["open", "https://example.com/run/1"], "your browser"))
+        cmd, reason = server.open_command({}, "darwin")
+        self.assertIsNone(cmd)
+        self.assertIn("did not say", reason)
+
+    def test_notifier_says_when_a_long_task_is_done(self):
+        shown = []
+        n = server.Notifier(True)
+        n._show = lambda title, message: shown.append((title, message))
+        now = time.time()
+        agent = {"id": "d", "name": "bot", "status": "idle", "task_started": now - 300,
+                 "finished_at": now, "answer": "Report is in reports/q3.md"}
+        n.check(agent)
+        n.check(agent)
+        self.assertEqual(shown, [("bot is done", "Report is in reports/q3.md")])
+        n.check({**agent, "task_started": now - 5, "finished_at": now + 1})  # quick task: no alert
+        self.assertEqual(len(shown), 1)
+
     def test_notifier_announces_once_per_episode(self):
         shown = []
         n = server.Notifier(True)

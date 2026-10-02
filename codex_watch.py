@@ -75,6 +75,7 @@ class Session:
         self.model = None
         self.cwd = None
         self.last_tool = None
+        self.last_message = None  # Codex's latest reply, shown when you click the agent
         self.pending = []  # lines seen before the session's id is known
 
     def _ensure_agent(self, session_id=None):
@@ -128,7 +129,9 @@ class Session:
             agent.tool_start(tool, tool_detail(payload))
         elif kind == "event_msg":
             event = payload.get("type")
-            if event == "user_message":
+            if event == "agent_message":
+                self.last_message = payload.get("message") or self.last_message
+            elif event == "user_message":
                 agent.prompt(payload.get("message") or "")
             elif event == "token_count":
                 info = payload.get("info") or {}
@@ -136,7 +139,8 @@ class Session:
                 if tokens:
                     agent._send("tool_end", tool=self.last_tool, tokens=tokens, model=self.model)
             elif event in ("task_complete", "turn_complete", "turn_aborted"):
-                agent.done()
+                agent.done(answer=payload.get("last_agent_message") or self.last_message)
+                self.last_message = None
 
 
 def find_rollouts(now):

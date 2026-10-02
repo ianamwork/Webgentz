@@ -37,6 +37,8 @@ PRICING_PATH = Path(os.environ.get("WEBGENTZ_PRICING", ROOT / "pricing.json"))
 KEEP_DAYS = int(os.environ.get("WEBGENTZ_KEEP_DAYS", "30"))
 # Set WEBGENTZ_NOTIFY=0 to turn off desktop notifications.
 NOTIFY = os.environ.get("WEBGENTZ_NOTIFY", "1") != "0"
+# Say when an agent finishes a task that took at least this long.
+DONE_ALERT_AFTER_SECONDS = int(os.environ.get("WEBGENTZ_DONE_ALERT_SECONDS", "60"))
 MAX_EVENT_BYTES = 256 * 1024
 
 
@@ -159,9 +161,16 @@ class Notifier:
             pass
 
     def check(self, agent):
-        """Announce an agent once each time it starts needing you or gets stuck."""
+        """Announce an agent once each time it needs you, gets stuck, or finishes a long task."""
         key = agent["id"]
         status = agent["status"]
+        finished, started = agent.get("finished_at"), agent.get("task_started")
+        if (status == "idle" and finished and started and finished - started >= DONE_ALERT_AFTER_SECONDS
+                and time.time() - finished < 120 and (key, "done", finished) not in self.flagged):
+            self.flagged.add((key, "done", finished))
+            answer = " ".join((agent.get("answer") or "").split())
+            self._show(f"{agent['name']} is done", answer[:120] or "Finished the job. Click it in the jungle to jump there.")
+            return
         if status in ("needs_you", "stuck"):
             if (key, status) not in self.flagged:
                 self.flagged.add((key, status))
@@ -170,7 +179,97 @@ class Notifier:
                 else:
                     self._show(f"{agent['name']} may be stuck", "No activity for 5 minutes")
         else:
-            self.flagged = {f for f in self.flagged if f[0] != key}
+            self.flagged = {f for f in self.flagged if f[0] != key or f[1] == "done"}
+
+
+# ---------------------------------------------------------------- jumping to an agent
+
+# AppleScript that finds the Terminal or iTerm2 tab running on a given tty
+# and brings it to the front. The tty is passed as an argument, never pasted
+# into the script.
+TERMINAL_SCRIPT = """
+on run argv
+  set target to item 1 of argv
+  tell application "Terminal"
+    repeat with w in windows
+      repeat with t in tabs of w
+        if tty of t is target then
+          set selected tab of w to t
+          set index of w to 1
+          activate
+          return "found"
+        end if
+      end repeat
+    end repeat
+    activate
+  end tell
+end run
+"""
+
+ITERM_SCRIPT = """
+on run argv
+  set target to item 1 of argv
+  tell application "iTerm2"
+    repeat with w in windows
+      repeat with t in tabs of w
+        repeat with s in sessions of t
+          if tty of s is target then
+            select w
+            select t
+            select s
+            activate
+            return "found"
+          end if
+        end repeat
+      end repeat
+    end repeat
+    activate
+  end tell
+end run
+"""
+
+# Editors open the agent's project folder, which focuses the right window.
+EDITORS = ("Visual Studio Code", "Cursor", "Windsurf", "Zed")
+
+
+def open_command(agent, platform=sys.platform):
+    """The command that brings an agent's window to the front, and a label for it.
+
+    Returns (None, reason) when there is nowhere to go.
+    """
+    where = agent.get("open") or {}
+    app, tty, url = where.get("app"), where.get("tty"), where.get("url")
+    cwd = agent.get("cwd") or ""
+    if platform == "darwin":
+        if app == "Terminal" and tty:
+            return ["osascript", "-e", TERMINAL_SCRIPT, tty], "Terminal"
+        if app == "iTerm2" and tty:
+            return ["osascript", "-e", ITERM_SCRIPT, tty], "iTerm2"
+        if app in EDITORS and cwd and os.path.isdir(cwd):
+            return ["open", "-a", app, cwd], app
+        if app:
+            return ["open", "-a", app], app
+        if url:
+            return ["open", url], "your browser"
+    elif url and shutil.which("xdg-open"):
+        return ["xdg-open", url], "your browser"
+    elif app:
+        return None, "Jumping to an app only works on a Mac for now"
+    return None, "This agent did not say where it is running"
+
+
+def open_agent(agent_id):
+    agent = next((a for a in world.snapshot() if a["id"] == agent_id), None)
+    if agent is None:
+        return 404, {"error": "no agent with that id"}
+    command, label = open_command(agent)
+    if command is None:
+        return 409, {"error": label}
+    try:
+        subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError as exc:
+        return 500, {"error": f"could not open {label}: {exc}"}
+    return 200, {"ok": True, "opened": label}
 
 
 # ---------------------------------------------------------------- live updates
@@ -253,16 +352,32 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _from_other_website(self):
+        """Browsers say which site a request came from. Only our own page may post."""
+        origin = self.headers.get("Origin")
+        if not origin:
+            return False  # scripts and hooks, not a browser
+        return urlparse(origin).hostname not in ("localhost", "127.0.0.1", "::1")
+
     def do_POST(self):
-        if urlparse(self.path).path != "/event":
+        path = urlparse(self.path).path
+        if path not in ("/event", "/api/open"):
             return self._json(404, {"error": "not found"})
+        if self._from_other_website():
+            return self._json(403, {"error": "requests from other websites are not allowed"})
         length = int(self.headers.get("Content-Length") or 0)
         if length > MAX_EVENT_BYTES:
             return self._json(413, {"error": "event is too large"})
         try:
-            ingest(json.loads(self.rfile.read(length) or b"{}"))
+            body = json.loads(self.rfile.read(length) or b"{}")
         except json.JSONDecodeError:
             return self._json(400, {"error": "the body is not valid JSON"})
+        if path == "/api/open":
+            if not isinstance(body, dict) or not isinstance(body.get("id"), str):
+                return self._json(400, {"error": "send {\"id\": \"<agent id>\"}"})
+            return self._json(*open_agent(body["id"]))
+        try:
+            ingest(body)
         except EventError as exc:
             return self._json(400, {"error": str(exc)})
         self._json(200, {"ok": True})

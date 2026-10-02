@@ -760,18 +760,29 @@
     }
   }
 
-  function bubbleText(a) {
-    const s = a.data.status;
-    if (s === "needs_you") return "!";
-    if (s === "stuck") return "?";
-    if (s === "sleeping") return "Zz";
-    if (s === "idle") return "♪";
-    if (a.data.activity === "taking orders") return "…";
-    const tool = (a.data.detail || "").split(":")[0];
-    return tool ? tool.replace(/^mcp__/, "").slice(0, 14) : "…";
+  // What the speech bubble says, and how it looks.
+  function bubbleFor(a) {
+    const d = a.data;
+    const dots = ".".repeat(1 + (Math.floor(clock * 2.5) % 3)).padEnd(3, "\u2007");
+    if (d.status === "needs_you") return { text: "! Needs you", look: "urgent" };
+    if (d.status === "stuck") return { text: "? Stuck", look: "urgent" };
+    if (d.status === "sleeping") return { text: "Zz", look: "quiet" };
+    if (d.status === "idle") return d.prompts ? { text: "\u2713 Done", look: "done" } : { text: "Ready", look: "quiet" };
+    if (d.activity === "taking orders") return { text: `Thinking${dots}`, look: "working" };
+    const tool = (d.detail || "").split(":")[0].replace(/^mcp__/, "").slice(0, 14);
+    return { text: `${tool || "Working"}${dots}`, look: "working" };
   }
 
-  function drawBubble(text, cx, top, urgent, alpha) {
+  const BUBBLE = {
+    working: { fill: "#fbfaf2", ink: "#14201a" },
+    done:    { fill: "#3fbf6a", ink: "#ffffff" },
+    urgent:  { fill: "#ffd23f", ink: "#14201a" },
+    quiet:   { fill: "#dfe6dc", ink: "#4a5a4f" },
+  };
+
+  function drawBubble(bubble, cx, top, alpha) {
+    const { text, look } = bubble;
+    const colors = BUBBLE[look];
     ui.globalAlpha = alpha;
     ui.font = `700 7.5px ${READ_FONT}`;
     ui.textBaseline = "middle";
@@ -781,7 +792,7 @@
     ui.fillStyle = "rgba(0,0,0,0.25)";
     roundRect(ui, x, y + 1, w, h, 3);
     ui.fill();
-    ui.fillStyle = urgent ? "#ffd23f" : "#fbfaf2";
+    ui.fillStyle = colors.fill;
     roundRect(ui, x, y, w, h, 3);
     ui.fill();
     ui.beginPath(); // little tail pointing at the animal
@@ -791,7 +802,7 @@
     ui.lineWidth = 0.5;
     roundRect(ui, x, y, w, h, 3);
     ui.stroke();
-    ui.fillStyle = "#14201a";
+    ui.fillStyle = colors.ink;
     ui.fillText(text, cx, y + h / 2 + 0.4);
     ui.textAlign = "left";
     ui.globalAlpha = 1;
@@ -866,6 +877,15 @@
       const x = Math.round(a.x), y = Math.round(a.y);
       ctx.globalAlpha = Math.max(0, a.alpha) * (a.data.status === "sleeping" ? 0.65 : 1);
       const resting = !a.path.length;
+      if (a.data.status === "working" && !reduceMotion) {
+        // a gentle pulse while the agent is busy
+        const pulse = (clock * 1.2 + (a.seed || 0)) % 1;
+        ui.strokeStyle = `rgba(255,236,150,${0.7 * (1 - pulse)})`;
+        ui.lineWidth = 0.8;
+        ui.beginPath();
+        ui.ellipse(x, y, 6 + pulse * 10, 2 + pulse * 3, 0, 0, Math.PI * 2);
+        ui.stroke();
+      }
       if (!a.climbing) {
         // soft shadow under the feet
         ctx.fillStyle = "rgba(0,0,0,0.28)";
@@ -893,9 +913,9 @@
         px(ctx, x - 1, head - 20 - blink, 3, 3, "#ffd23f");
       }
       if (resting && a.data.status !== "gone") {
-        const urgent = a.data.status === "needs_you" || a.data.status === "stuck";
-        const hop = urgent ? Math.round(Math.abs(Math.sin(clock * 6)) * 2) : 0;
-        drawBubble(bubbleText(a), x, head - hop, urgent, ctx.globalAlpha);
+        const bubble = bubbleFor(a);
+        const hop = bubble.look === "urgent" ? Math.round(Math.abs(Math.sin(clock * 6)) * 2) : 0;
+        drawBubble(bubble, x, head - hop, ctx.globalAlpha);
       }
       ctx.globalAlpha = 1;
     }
@@ -921,6 +941,8 @@
   canvas.addEventListener("click", e => {
     const a = agentAt(e.clientX, e.clientY);
     select(a ? a.data.id : null);
+    // A finished or waiting agent takes you straight to its window.
+    if (a && ["idle", "needs_you", "stuck", "sleeping"].includes(a.data.status) && a.data.open) jumpTo(a.data);
   });
   canvas.addEventListener("mousemove", e => {
     canvas.style.cursor = agentAt(e.clientX, e.clientY) ? "pointer" : "default";
@@ -931,7 +953,35 @@
   const $ = id => document.getElementById(id);
   const fmt = n => (n || 0).toLocaleString();
   const totalTokens = t => (t.input || 0) + (t.output || 0) + (t.cache_read || 0) + (t.cache_write || 0);
-  const STATUS_LABEL = { working: "WORKING", needs_you: "NEEDS YOU", stuck: "MAY BE STUCK", idle: "RESTING", sleeping: "ASLEEP", gone: "LEFT" };
+  const STATUS_LABEL = { working: "WORKING", needs_you: "NEEDS YOU", stuck: "MAY BE STUCK", idle: "DONE", sleeping: "ASLEEP", gone: "LEFT" };
+
+  // Where clicking an agent takes you, in words.
+  function openLabel(d) {
+    const o = d.open || {};
+    if (o.app) return `Open in ${o.app}`;
+    if (o.url) return "Open its page";
+    return null;
+  }
+
+  async function jumpTo(d) {
+    const label = openLabel(d);
+    if (!label) return;
+    if (demo) {
+      $("ticker").textContent = `In your own jungle, this would bring ${d.name}'s ${d.open.app || "page"} to the front.`;
+      return;
+    }
+    try {
+      const r = await fetch("api/open", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: d.id }),
+      });
+      const body = await r.json();
+      $("ticker").textContent = r.ok ? `Opened ${body.opened} for ${d.name}.` : `Could not jump to ${d.name}: ${body.error}`;
+    } catch {
+      $("ticker").textContent = "Could not reach the jungle server.";
+    }
+  }
   const money = v => (v >= 100 ? `$${v.toFixed(0)}` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(3)}`);
 
   function placeName(d) {
@@ -952,6 +1002,10 @@
   }
 
   $("back").addEventListener("click", () => select(null));
+  $("a-open").addEventListener("click", () => {
+    const a = selectedId && agents.get(selectedId);
+    if (a) jumpTo(a.data);
+  });
 
   function renderRoster() {
     const list = [...agents.values()];
@@ -996,6 +1050,12 @@
     const badge = $("a-status");
     badge.textContent = STATUS_LABEL[d.status] || d.status;
     badge.className = `badge ${d.status}`;
+    const jump = $("a-open");
+    const label = openLabel(d);
+    jump.hidden = !label;
+    if (label) jump.textContent = `${label} \u2197`;
+    $("a-answer-box").hidden = !d.answer;
+    $("a-answer").textContent = d.answer || "";
     $("a-kind").textContent = `${kind.label} (${kind.animal})`;
     $("a-layer").textContent = `${LAYERS[layerOf(d)].label.toLowerCase()}, ${placeName(d)}`;
     $("a-activity").textContent = d.activity || "-";

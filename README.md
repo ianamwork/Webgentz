@@ -99,13 +99,14 @@ Each kind of agent shows up as a different animal.
 ```python
 from webgentz_client import Agent
 
-with Agent("lead-finder", layer="canopy") as agent:
+with Agent("lead-finder", layer="canopy", link="https://mail.google.com/mail/#drafts") as agent:
     agent.prompt("Find 20 fintech leads")
     with agent.tool("WebSearch", "fintech startups 2026"):
         results = search("fintech startups 2026")
     response = client.messages.create(...)   # Anthropic or OpenAI
     agent.record(response)                    # counts tokens and cost
     agent.needs_you("Approve the email draft?")
+    agent.done(answer="20 drafts are ready in Gmail")
 ```
 
 If the jungle is not running, the helper silently does nothing.
@@ -131,6 +132,21 @@ agents never show "needs you".
 **Anything else.** Send JSON to `POST /event`. The format is written down in
 [EVENTS.md](EVENTS.md) and will not change in ways that break old senders.
 
+## Working, done, and jumping back
+
+A busy agent has a pulsing ring at its feet and a bubble like "Edit..." with
+moving dots. When it finishes, the bubble turns into a green **✓ Done**.
+
+Click a finished agent (or one that needs you) to jump straight to it:
+
+- **Terminal or iTerm2:** the exact tab Claude Code is running in comes to the
+  front. The first time, macOS asks whether Webgentz may control Terminal. Say OK.
+- **VS Code, Cursor, Windsurf, Zed:** the window for that project opens.
+- **Python scripts:** pass `link="https://..."` to `Agent(...)` and that page opens.
+
+The side panel also shows the agent's final answer, so you can often read it
+without leaving the jungle.
+
 ## History, spending and alerts
 
 Click **HISTORY** in the top bar (or open `/history.html`) to see tokens and
@@ -139,8 +155,9 @@ agent did. Dollar costs come from `pricing.json`; models that are not listed
 there count tokens but no dollars, and the page says so. Add a line for any
 model you use that is missing.
 
-When an agent needs you, or has been working without any sign of progress for
-5 minutes ("may be stuck"), your Mac shows a notification once.
+Your Mac shows a notification once when an agent needs you, when it has been
+working for 5 minutes with no sign of progress ("may be stuck"), and when it
+finishes a task that took over a minute.
 
 Old history is deleted after 30 days, and agents that have been gone for a day
 are cleared from the jungle.
@@ -178,6 +195,7 @@ Run the tests with `python3 -m unittest discover tests`.
 | `WEBGENTZ_PRICING`             | `pricing.json`          | dollar prices per model                |
 | `WEBGENTZ_KEEP_DAYS`           | `30`                    | how many days of history to keep       |
 | `WEBGENTZ_NOTIFY`              | `1`                     | set to `0` to turn off notifications   |
+| `WEBGENTZ_DONE_ALERT_SECONDS`  | `60`                    | only say "done" for tasks this long    |
 | `WEBGENTZ_PROXY_PORT`          | `8766`                  | port the API proxy listens on          |
 | `WEBGENTZ_UPSTREAM_<PROVIDER>` | the real API            | send a provider's calls somewhere else |
 

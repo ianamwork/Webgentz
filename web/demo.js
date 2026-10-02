@@ -17,13 +17,20 @@ window.WebgentzDemo = (() => {
 
   // One crew per layer of the tree: infrastructure, product, and GTM.
   const CREW = [
-    { project: "infra-terraform", type: "claude-code", layer: "roots", job: "Set up the database backups" },
-    { project: "api-server", type: "codex", layer: "roots", job: "Speed up the slow /events endpoint" },
-    { project: "webgentz-app", type: "claude-code", layer: "understory", job: "Build the jungle view" },
-    { project: "onboarding-flow", type: "openai", layer: "understory", job: "Fix the signup form bugs" },
-    { project: "sales-outreach", type: "gtm", layer: "canopy", job: "Draft follow-ups for 20 leads" },
-    { project: "market-research", type: "research", layer: "canopy", job: "Compare agent observability tools" },
-    { project: "launch-posts", type: "python", layer: "canopy", job: "Write the launch thread" },
+    { project: "infra-terraform", type: "claude-code", layer: "roots", job: "Set up the database backups",
+      open: { app: "Terminal" }, answer: "Nightly backups now run at 2am and keep 14 days. I tested a restore into a scratch database and it worked." },
+    { project: "api-server", type: "codex", layer: "roots", job: "Speed up the slow /events endpoint",
+      open: { app: "iTerm2" }, answer: "Added an index on (session_id, received). The endpoint went from 840ms to 95ms." },
+    { project: "webgentz-app", type: "claude-code", layer: "understory", job: "Build the jungle view",
+      open: { app: "Cursor" }, answer: "The jungle view is done. Agents climb the trunk between layers and the leaves wilt when someone is stuck." },
+    { project: "onboarding-flow", type: "openai", layer: "understory", job: "Fix the signup form bugs",
+      open: { url: "https://example.com/runs/onboarding" }, answer: "Fixed 3 bugs: the email check, the double submit, and the error message that never cleared." },
+    { project: "sales-outreach", type: "gtm", layer: "canopy", job: "Draft follow-ups for 20 leads",
+      open: { url: "https://example.com/drafts" }, answer: "20 drafts are ready in Gmail. 4 leads asked for pricing, so those drafts include the one-pager." },
+    { project: "market-research", type: "research", layer: "canopy", job: "Compare agent observability tools",
+      open: { app: "Claude" }, answer: "Compared 6 tools. None show agents across providers in one place, and only two track cost per agent." },
+    { project: "launch-posts", type: "python", layer: "canopy", job: "Write the launch thread",
+      open: { url: "https://example.com/launch" }, answer: "The launch thread has 7 posts and is saved as a draft." },
   ];
 
   const pick = list => list[Math.floor(Math.random() * list.length)];
@@ -53,16 +60,23 @@ window.WebgentzDemo = (() => {
       prompts: 0,
       recent: [],
       job: member.job,
+      open: member.open,
+      answer: "",
+      demoAnswer: member.answer,
     };
   }
 
   function step(agent) {
     const now = Date.now() / 1000;
+    // finished agents stay finished for a while, so you can click them
+    if (agent.status === "idle" && agent.prompts && Math.random() < 0.65) {
+      return { ...agent, tokens: { ...agent.tokens }, tool_counts: { ...agent.tool_counts }, recent: [...agent.recent] };
+    }
     const roll = Math.random();
     let text;
     if (agent.prompts === 0 || roll < 0.08) {
       agent.prompts++;
-      Object.assign(agent, { status: "working", location: "townhall", activity: "taking orders", detail: agent.job });
+      Object.assign(agent, { status: "working", location: "townhall", activity: "taking orders", detail: agent.job, answer: "" });
       text = `New orders: ${agent.job}`;
     } else if (roll < 0.14) {
       Object.assign(agent, { status: "needs_you", location: "townhall", activity: "waiting for you", detail: "Claude needs your permission to use Bash" });
@@ -70,8 +84,8 @@ window.WebgentzDemo = (() => {
     } else if (roll < 0.17) {
       Object.assign(agent, { status: "stuck", activity: "a long tool run, may be stuck", detail: "Bash: npm run build" });
       text = "Quiet for 5 minutes during a long command";
-    } else if (roll < 0.24) {
-      Object.assign(agent, { status: "idle", location: "campfire", activity: "resting", detail: "Finished the job" });
+    } else if (roll < 0.3) {
+      Object.assign(agent, { status: "idle", location: "campfire", activity: "resting", detail: "Finished the job", answer: agent.demoAnswer });
       text = "Finished and resting at the campfire";
     } else {
       const t = pick(TOOLS);

@@ -131,10 +131,10 @@ canvas {
   font-size: 12.5px;
   margin-bottom: 8px;
 }
-.badge.working { background: #78c850; }
+.badge.working { background: #a8d8f8; }
 .badge.needs_you { background: #f8d030; }
 .badge.stuck { background: #f8a830; }
-.badge.idle { background: #a8d8f8; }
+.badge.idle { background: #8fe0a6; }
 .badge.sleeping { background: #c8c8d8; }
 .badge.gone { background: #d8d8d8; }
 
@@ -232,4 +232,29 @@ canvas.words {
   background: none;
   image-rendering: auto;
   pointer-events: none;
+}
+
+.status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.status-row .badge { margin-bottom: 0; }
+.jump {
+  font: 700 13px var(--read);
+  padding: 5px 10px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #3fbf6a;
+  color: #fff;
+  cursor: pointer;
+}
+.jump:hover, .jump:focus-visible { background: #2fa457; outline: none; }
+.answer {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13.5px;
+  line-height: 1.5;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  background: #fffdf3;
+  border: 2px solid #d9d3b8;
+  border-radius: 4px;
 }

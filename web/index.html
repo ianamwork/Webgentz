@@ -40,7 +40,14 @@
       <div id="panel-agent" hidden>
         <button class="back" id="back">&#9664; ALL AGENTS</button>
         <h2 id="a-name"></h2>
-        <div class="badge" id="a-status"></div>
+        <div class="status-row">
+          <div class="badge" id="a-status"></div>
+          <button class="jump" id="a-open" hidden></button>
+        </div>
+        <div id="a-answer-box" hidden>
+          <h3>ANSWER</h3>
+          <div class="answer" id="a-answer"></div>
+        </div>
         <dl class="facts">
           <dt>Kind</dt><dd id="a-kind"></dd>
           <dt>Where</dt><dd id="a-layer"></dd>

@@ -64,6 +64,8 @@ Claude Code's own hook names are accepted too and mean the same thing:
 | `tokens`         | no       | object | the agent's **running totals so far**, replacing the old totals |
 | `cost_usd`       | no       | number | dollars spent by this call, if you know it better than the price table |
 | `transcript_path`| no       | string | Claude Code only: the transcript to read token totals from |
+| `answer`         | no       | string | on `done`: the agent's final answer, shown when you click it (Claude Code's is read from the transcript) |
+| `open`           | no       | object | where clicking the agent takes you: `{"url": "https://..."}`, or `{"app": "Terminal", "tty": "/dev/ttys003"}`. `app` must be one of the names in `OPEN_APPS` in `webgentz_core.py` |
 
 `usage` and `tokens` both look like
 `{"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}`, and any key can

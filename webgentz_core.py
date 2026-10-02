@@ -11,6 +11,7 @@ Everything here is plain Python so it can be tested on its own (see tests/).
 import glob
 import json
 import os
+import re
 import threading
 import time
 
@@ -40,6 +41,15 @@ SLEEP_AFTER_SECONDS = 10 * 60
 # Agents that left more than this long ago are dropped from the live view.
 FORGET_GONE_AFTER_SECONDS = 24 * 60 * 60
 RECENT_EVENTS = 40
+# Keep this much of an agent's final answer.
+ANSWER_CHARS = 2000
+
+# Apps Webgentz may bring to the front when you click an agent. Only these
+# names are accepted in an event's `open` field.
+OPEN_APPS = (
+    "Terminal", "iTerm2", "Visual Studio Code", "Cursor", "Windsurf", "Zed", "Warp",
+    "Ghostty", "WezTerm", "Alacritty", "kitty", "Claude", "ChatGPT", "Codex",
+)
 
 # Which spot an agent goes to for each tool.
 TOOL_LOCATIONS = {
@@ -97,6 +107,29 @@ def clean_tokens(raw, field):
             raise EventError(f"'{field}.{key}' must be a number of 0 or more")
         out[key] = int(value)
     return out
+
+
+def clean_open(raw):
+    """Check the `open` field: where to take you when you click the agent."""
+    if not isinstance(raw, dict):
+        raise EventError("'open' must be an object like {\"app\": \"Terminal\", \"tty\": \"/dev/ttys003\"}")
+    where = {}
+    url = raw.get("url")
+    if url is not None:
+        if not isinstance(url, str) or not url.startswith(("https://", "http://")) or len(url) > 1000:
+            raise EventError("'open.url' must be an http or https address")
+        where["url"] = url
+    app = raw.get("app")
+    if app is not None:
+        if app not in OPEN_APPS:
+            raise EventError(f"'open.app' must be one of: {', '.join(OPEN_APPS)}")
+        where["app"] = app
+    tty = raw.get("tty")
+    if tty is not None:
+        if not isinstance(tty, str) or not re.fullmatch(r"/dev/ttys?\d{1,4}", tty):
+            raise EventError("'open.tty' must look like /dev/ttys003")
+        where["tty"] = tty
+    return where
 
 
 def describe_tool(tool, tool_input):
@@ -170,6 +203,12 @@ def normalize_event(raw, now=None):
         event["usage"] = clean_tokens(raw["usage"], "usage")
     if raw.get("tokens") is not None:
         event["tokens"] = clean_tokens(raw["tokens"], "tokens")
+    answer = raw.get("answer") or raw.get("last_assistant_message")
+    if isinstance(answer, str) and answer.strip():
+        event["answer"] = answer.strip()[-ANSWER_CHARS:]
+    if raw.get("open") is not None:
+        event["open"] = clean_open(raw["open"])
+
     if raw.get("cost_usd") is not None:
         cost = raw["cost_usd"]
         if not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0:
@@ -197,11 +236,11 @@ class TranscriptReader:
         self.files = {}  # path -> {"offset": int, "usage": {msg_id: usage}, "model": str}
 
     def _read_file(self, path):
-        state = self.files.setdefault(path, {"offset": 0, "usage": {}, "model": None})
+        state = self.files.setdefault(path, {"offset": 0, "usage": {}, "model": None, "answer": ""})
         try:
             size = os.path.getsize(path)
             if size < state["offset"]:  # the file was replaced, start over
-                state.update(offset=0, usage={}, model=None)
+                state.update(offset=0, usage={}, model=None, answer="")
             if size == state["offset"]:
                 return state
             with open(path, "rb") as f:
@@ -225,7 +264,20 @@ class TranscriptReader:
                 continue
             state["model"] = message.get("model") or state["model"]
             state["usage"][message.get("id") or record.get("uuid")] = message["usage"]
+            content = message.get("content")
+            if isinstance(content, list):
+                text = "\n".join(b.get("text", "") for b in content
+                                 if isinstance(b, dict) and b.get("type") == "text").strip()
+                if text:
+                    state["answer"] = text[-ANSWER_CHARS:]
         return state
+
+    def last_answer(self, transcript_path):
+        """The last thing the agent wrote back in its main transcript."""
+        if not transcript_path or not os.path.exists(transcript_path):
+            return ""
+        with self.lock:
+            return self._read_file(transcript_path)["answer"]
 
     def totals(self, transcript_path):
         """Returns (tokens, model) for a session, helpers included."""
@@ -386,6 +438,10 @@ class World:
             "prompts": 0,
             "tool_running": False,
             "recent": [],
+            "open": None,          # where clicking the agent takes you
+            "answer": "",          # its last answer, once a task is done
+            "task_started": None,
+            "finished_at": None,
         }
 
     def apply(self, event):
@@ -402,9 +458,13 @@ class World:
                     agent[key] = event[key]
             if event.get("model"):
                 agent["model"] = event["model"]
+            if event.get("open"):
+                agent["open"] = {**(agent["open"] or {}), **event["open"]}
 
             line = self._move(agent, event, name)
             change = self._count(agent, event, name)
+            if name == "done":
+                agent["answer"] = event.get("answer") or self.transcripts.last_answer(event.get("transcript_path"))
 
             agent["recent"].append({"time": now, "kind": name, "text": line})
             del agent["recent"][:-RECENT_EVENTS]
@@ -418,6 +478,7 @@ class World:
             return "Came back to the jungle" if resumed else "Arrived in the jungle"
         if name == "prompt":
             agent["prompts"] += 1
+            agent.update(task_started=event["received"], finished_at=None, answer="")
             prompt = short_text(event.get("prompt"), 70)
             agent.update(status="working", location="townhall", activity="taking orders", detail=prompt, tool_running=False)
             return f"New orders: {prompt}" if prompt else "New orders"
@@ -437,6 +498,7 @@ class World:
             agent.update(status="needs_you", location="townhall", activity="waiting for you", detail=message, tool_running=False)
             return message
         if name == "done":
+            agent["finished_at"] = event["received"]
             agent.update(status="idle", location="campfire", activity="resting", detail="Finished the job", tool_running=False)
             return "Finished and resting"
         if name == "helper_done":

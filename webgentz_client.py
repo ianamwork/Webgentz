@@ -111,13 +111,15 @@ def usage_from_response(response):
 class Agent:
     """One agent run in the jungle."""
 
-    def __init__(self, name, agent_type="python", layer=None, session_id=None, url=None, cwd=None):
+    def __init__(self, name, agent_type="python", layer=None, session_id=None, url=None, cwd=None, link=None):
         self.name = name
         self.agent_type = agent_type
         self.layer = layer
         self.session_id = session_id or f"{name}-{uuid.uuid4().hex[:8]}"
         self.url = (url or DEFAULT_URL).rstrip("/") + "/event"
         self.cwd = cwd or os.getcwd()
+        # a web page to open when you click this agent, e.g. where it posts its results
+        self.link = link
 
     def _send(self, event, **fields):
         body = {"v": 1, "session_id": self.session_id, "event": event, "name": self.name,
@@ -128,7 +130,7 @@ class Agent:
         _get_sender().send(self.url, body)
 
     def start(self):
-        self._send("start")
+        self._send("start", open={"url": self.link} if self.link else None)
         return self
 
     def prompt(self, task):
@@ -161,8 +163,9 @@ class Agent:
     def needs_you(self, message):
         self._send("needs_you", message=message)
 
-    def done(self):
-        self._send("done")
+    def done(self, answer=None):
+        """Finished a task. `answer` is shown when you click the agent."""
+        self._send("done", answer=answer)
 
     def end(self):
         self._send("end")
