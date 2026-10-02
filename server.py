@@ -445,7 +445,11 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     for event in store.all():
         world.apply(event)
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    try:
+        server = ThreadingHTTPServer((HOST, PORT), Handler)
+    except OSError:
+        sys.exit(f"Port {PORT} is already in use. The jungle may already be running "
+                 f"(check with `python3 autostart.py status`), or set WEBGENTZ_PORT to another port.")
     server.daemon_threads = True
     print(f"Webgentz jungle is open at http://{HOST}:{PORT}  (Ctrl+C to close)")
     print(f"Saving history to {DB_PATH}")

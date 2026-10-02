@@ -44,6 +44,20 @@ To disconnect later: `python3 install_hooks.py --uninstall`.
 If the server is not running, the hook quietly does nothing, so Claude Code is
 never slowed down.
 
+## Keep it running (Mac)
+
+Make the jungle start by itself whenever you log in, and restart if it crashes:
+
+```bash
+python3 autostart.py install     # start now and at every login
+python3 autostart.py status      # check it is running
+python3 autostart.py uninstall   # turn it off
+```
+
+Logs go to `~/Library/Logs/webgentz.log`. macOS stops background programs from
+reading `~/Documents`, `~/Desktop` and `~/Downloads`, so keep the Webgentz folder
+somewhere else, like `~/code/Webgentz`.
+
 ## Choosing each agent's layer
 
 Copy `webgentz.example.json` to `webgentz.json` and list which project folders
