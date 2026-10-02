@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Webgentz Village</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hud">
+    <div class="title">WEBGENTZ</div>
+    <div class="stats">
+      <span id="hud-agents">0 agents</span>
+      <span id="hud-tokens">0 tokens</span>
+      <span id="hud-mode" class="mode"></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="world-wrap">
+      <canvas id="world" width="576" height="320" aria-label="Village map with your agents"></canvas>
+      <div class="textbox" id="ticker">Welcome to the village!</div>
+    </section>
+
+    <aside class="panel" id="panel">
+      <div id="panel-roster">
+        <h2>YOUR AGENTS</h2>
+        <ul id="roster"></ul>
+        <p class="empty" id="roster-empty">
+          No agents yet.<br><br>
+          Start a Claude Code session after running <code>install_hooks.py</code>,
+          or open <a href="?demo">demo mode</a>.
+        </p>
+      </div>
+      <div id="panel-agent" hidden>
+        <button class="back" id="back">&#9664; ALL AGENTS</button>
+        <h2 id="a-name"></h2>
+        <div class="badge" id="a-status"></div>
+        <dl class="facts">
+          <dt>Doing</dt><dd id="a-activity"></dd>
+          <dt>Detail</dt><dd id="a-detail"></dd>
+          <dt>Project</dt><dd id="a-project"></dd>
+          <dt>Model</dt><dd id="a-model"></dd>
+          <dt>Active for</dt><dd id="a-age"></dd>
+          <dt>Orders</dt><dd id="a-prompts"></dd>
+        </dl>
+        <h3>TOKENS</h3>
+        <div class="tokens">
+          <div><span>Input</span><b id="t-input"></b></div>
+          <div><span>Output</span><b id="t-output"></b></div>
+          <div><span>Cache read</span><b id="t-cache_read"></b></div>
+          <div><span>Cache write</span><b id="t-cache_write"></b></div>
+          <div class="total"><span>Total</span><b id="t-total"></b></div>
+        </div>
+        <h3>TOOLS USED</h3>
+        <ul class="bars" id="a-tools"></ul>
+        <h3>RECENT</h3>
+        <ol class="log" id="a-log"></ol>
+      </div>
+    </aside>
+  </main>
+
+  <script src="demo.js"></script>
+  <script src="world.js"></script>
+</body>
+</html>
