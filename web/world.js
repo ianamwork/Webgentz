@@ -23,6 +23,38 @@
   const canvas = document.getElementById("world");
   const ctx = canvas.getContext("2d");
   ctx.imageSmoothingEnabled = false;
+
+  // Words are drawn on a second, full-resolution canvas laid over the pixel
+  // art, so they stay sharp and easy to read at any size.
+  const stage = document.createElement("div");
+  stage.className = "stage";
+  canvas.parentNode.insertBefore(stage, canvas);
+  stage.appendChild(canvas);
+  const overlay = document.createElement("canvas");
+  overlay.className = "words";
+  overlay.setAttribute("aria-hidden", "true");
+  stage.appendChild(overlay);
+  const ui = overlay.getContext("2d");
+  const READ_FONT = "Nunito, system-ui, -apple-system, 'Segoe UI', sans-serif";
+
+  // Match the overlay to the canvas's size on screen; draw in jungle units.
+  function fitOverlay() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+    if (overlay.width !== w || overlay.height !== h) { overlay.width = w; overlay.height = h; }
+    ui.setTransform(w / W, 0, 0, h / H, 0, 0);
+    ui.clearRect(0, 0, W, H);
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ------------------------------------------------------------ layout
@@ -435,18 +467,30 @@
   }
 
   function drawLayerLabels(c) {
-    c.font = "6px 'Press Start 2P', monospace";
-    c.textBaseline = "top";
+    c.textBaseline = "middle";
     const place = { canopy: LAYERS.canopy.y + 16, understory: LAYERS.understory.y + 30, roots: TUNNEL_FLOOR + 7 };
     for (const name of LAYER_ORDER) {
       const L = LAYERS[name];
-      const text = `${L.label} · ${L.sub}`;
-      const w = Math.ceil(c.measureText(text).width) + 12;
       const y = place[name];
-      px(c, 6, y, w, 12, "rgba(16,28,20,0.82)");
-      px(c, 6, y, 3, 12, L.color);
-      c.fillStyle = "#f3f1e4";
-      c.fillText(text, 13, y + 3);
+      c.font = `800 7px ${READ_FONT}`;
+      const head = L.label.charAt(0) + L.label.slice(1).toLowerCase();
+      const hw = c.measureText(head).width;
+      c.font = `600 7px ${READ_FONT}`;
+      const sub = L.sub === "GROWTH & GTM" ? "growth & GTM" : L.sub.toLowerCase();
+      const sw = c.measureText(sub).width;
+      const w = 12 + hw + 5 + sw + 7;
+      c.fillStyle = "rgba(14,26,19,0.85)";
+      roundRect(c, 6, y, w, 14, 3);
+      c.fill();
+      c.fillStyle = L.color;
+      roundRect(c, 6, y, 3, 14, 1.5);
+      c.fill();
+      c.fillStyle = "#ffffff";
+      c.font = `800 7px ${READ_FONT}`;
+      c.fillText(head, 13, y + 7.3);
+      c.fillStyle = "#c9d8cc";
+      c.font = `600 7px ${READ_FONT}`;
+      c.fillText(sub, 13 + hw + 5, y + 7.3);
     }
   }
 
@@ -485,7 +529,6 @@
     const f = front.getContext("2d");
     f.clearRect(0, 0, W, H);
     drawFrontLeaves(f, pal);
-    drawLayerLabels(f);
   }
 
   // ------------------------------------------------------------ creatures
@@ -725,19 +768,33 @@
     if (s === "idle") return "♪";
     if (a.data.activity === "taking orders") return "…";
     const tool = (a.data.detail || "").split(":")[0];
-    return tool ? tool.replace(/^mcp__/, "").slice(0, 10) : "…";
+    return tool ? tool.replace(/^mcp__/, "").slice(0, 14) : "…";
   }
 
-  function drawBubble(text, cx, top, urgent) {
-    ctx.font = "6px 'Press Start 2P', monospace";
-    const w = Math.max(10, Math.ceil(ctx.measureText(text).width) + 6);
-    const x = Math.round(cx - w / 2), y = Math.round(top - 12);
-    px(ctx, x - 1, y - 1, w + 2, 11, "#14201a");
-    px(ctx, x, y, w, 9, urgent ? "#ffd23f" : "#f8f6ea");
-    px(ctx, Math.round(cx) - 1, y + 9, 3, 2, urgent ? "#ffd23f" : "#f8f6ea");
-    ctx.fillStyle = "#14201a";
-    ctx.textBaseline = "top";
-    ctx.fillText(text, x + 3, y + 2);
+  function drawBubble(text, cx, top, urgent, alpha) {
+    ui.globalAlpha = alpha;
+    ui.font = `700 7.5px ${READ_FONT}`;
+    ui.textBaseline = "middle";
+    ui.textAlign = "center";
+    const w = Math.max(12, ui.measureText(text).width + 8);
+    const h = 12, x = cx - w / 2, y = top - h - 3;
+    ui.fillStyle = "rgba(0,0,0,0.25)";
+    roundRect(ui, x, y + 1, w, h, 3);
+    ui.fill();
+    ui.fillStyle = urgent ? "#ffd23f" : "#fbfaf2";
+    roundRect(ui, x, y, w, h, 3);
+    ui.fill();
+    ui.beginPath(); // little tail pointing at the animal
+    ui.moveTo(cx - 2.5, y + h - 0.5); ui.lineTo(cx + 2.5, y + h - 0.5); ui.lineTo(cx, y + h + 2.5);
+    ui.fill();
+    ui.strokeStyle = "rgba(20,32,26,0.55)";
+    ui.lineWidth = 0.5;
+    roundRect(ui, x, y, w, h, 3);
+    ui.stroke();
+    ui.fillStyle = "#14201a";
+    ui.fillText(text, cx, y + h / 2 + 0.4);
+    ui.textAlign = "left";
+    ui.globalAlpha = 1;
   }
 
   // ------------------------------------------------------------ ambience
@@ -795,6 +852,7 @@
     const band = healthBand(health);
     if (band !== drawnBand) { drawScenery(health); drawnBand = band; }
 
+    fitOverlay();
     ctx.drawImage(back, 0, 0);
     drawAmbience(clock);
 
@@ -837,11 +895,12 @@
       if (resting && a.data.status !== "gone") {
         const urgent = a.data.status === "needs_you" || a.data.status === "stuck";
         const hop = urgent ? Math.round(Math.abs(Math.sin(clock * 6)) * 2) : 0;
-        drawBubble(bubbleText(a), x, head - hop, urgent);
+        drawBubble(bubbleText(a), x, head - hop, urgent, ctx.globalAlpha);
       }
       ctx.globalAlpha = 1;
     }
     ctx.drawImage(front, 0, 0);
+    drawLayerLabels(ui);
     requestAnimationFrame(frame);
   }
 
@@ -1035,6 +1094,6 @@
     renderPanel();
   }, 1000);
 
-  // Text widths depend on the pixel font, so draw once it has loaded.
+  // Text widths depend on the font, so draw once it has loaded.
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => requestAnimationFrame(frame));
 })();

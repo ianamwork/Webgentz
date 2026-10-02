@@ -13,7 +13,7 @@
   const state = { days: 14, measure: "cost", rows: [], session: null };
 
   const tokensOf = r => (r.input || 0) + (r.output || 0) + (r.cache_read || 0) + (r.cache_write || 0);
-  const money = v => (v >= 100 ? `$${v.toFixed(0)}` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(3)}`);
+  const money = v => (v === 0 ? "$0" : v >= 100 ? `$${v.toFixed(0)}` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(3)}`);
   const compact = v => (v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}K` : `${Math.round(v)}`);
   const fmt = v => (state.measure === "cost" ? money(v) : compact(v));
   const valueOf = r => (state.measure === "cost" ? r.cost_usd || 0 : tokensOf(r));
