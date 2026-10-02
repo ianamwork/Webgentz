@@ -51,6 +51,10 @@ TOOL_LOCATIONS = {
     "Task": "barracks", "Agent": "barracks",
     "TodoWrite": "townhall", "ExitPlanMode": "townhall",
     "llm_call": "townhall",
+    # Codex tool names
+    "exec_command": "forge", "local_shell": "forge", "write_stdin": "forge",
+    "apply_patch": "workshop", "web_search": "library", "view_image": "library",
+    "update_plan": "townhall",
 }
 
 LOCATION_ACTIVITY = {

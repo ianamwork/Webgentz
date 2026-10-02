@@ -134,7 +134,11 @@ class ProxyTests(unittest.TestCase):
     def test_each_api_key_is_its_own_agent(self):
         self.call("/anthropic/v1/messages", {"model": "m"}, {"x-api-key": "key-one"})
         self.call("/anthropic/v1/messages", {"model": "m"}, {"x-api-key": "key-two"})
-        names = {e["name"] for e in RECEIVED if e["event"] == "start" and e["name"].startswith("anthropic-")}
+        for _ in range(100):  # events are sent in the background
+            names = {e["name"] for e in RECEIVED if e["event"] == "start" and e["name"].startswith("anthropic-")}
+            if len(names) >= 2:
+                break
+            time.sleep(0.02)
         self.assertGreaterEqual(len(names), 2)
         self.assertFalse(any("key-one" in n for n in names))  # the key itself never appears
 
