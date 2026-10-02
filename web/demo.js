@@ -11,7 +11,7 @@ window.WebgentzDemo = (() => {
     { tool: "Write", location: "workshop", activity: "building", things: ["report.md", "email_draft.txt"] },
     { tool: "Bash", location: "forge", activity: "running commands", things: ["npm test", "python3 analysis.py", "git status"] },
     { tool: "Task", location: "barracks", activity: "briefing a helper", things: ["Summarize the sales calls"] },
-    { tool: "mcp__gmail__search", location: "market", activity: "trading with an outside tool", things: ["inbox: leads"] },
+    { tool: "mcp__gmail__search", location: "market", activity: "using an outside tool", things: ["inbox: leads"] },
     { tool: "TodoWrite", location: "townhall", activity: "planning", things: ["plan the week"] },
   ];
 
@@ -47,6 +47,8 @@ window.WebgentzDemo = (() => {
       started: now - Math.random() * 1800,
       last_seen: now,
       tokens: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+      cost_usd: 0,
+      cost_known: !["openai", "codex"].includes(member.type),
       tool_counts: {},
       prompts: 0,
       recent: [],
@@ -65,7 +67,10 @@ window.WebgentzDemo = (() => {
     } else if (roll < 0.14) {
       Object.assign(agent, { status: "needs_you", location: "townhall", activity: "waiting for you", detail: "Claude needs your permission to use Bash" });
       text = agent.detail;
-    } else if (roll < 0.22) {
+    } else if (roll < 0.17) {
+      Object.assign(agent, { status: "stuck", activity: "a long tool run, may be stuck", detail: "Bash: npm run build" });
+      text = "Quiet for 5 minutes during a long command";
+    } else if (roll < 0.24) {
       Object.assign(agent, { status: "idle", location: "campfire", activity: "resting", detail: "Finished the job" });
       text = "Finished and resting at the campfire";
     } else {
@@ -80,6 +85,7 @@ window.WebgentzDemo = (() => {
     agent.tokens.output += Math.floor(k * 0.3);
     agent.tokens.cache_read += k * 6;
     agent.tokens.cache_write += Math.floor(k * 0.8);
+    if (agent.cost_known) agent.cost_usd += (k * 0.05 * 4 + k * 0.3 * 20 + k * 6 * 0.4 + k * 0.8 * 5) / 1e6;
     agent.last_seen = now;
     agent.recent.push({ time: now, kind: "demo", text });
     agent.recent = agent.recent.slice(-40);

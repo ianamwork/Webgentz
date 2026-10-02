@@ -253,5 +253,13 @@ class LayerConfigTests(unittest.TestCase):
         self.assertEqual(LayerConfig().layer_for("/anything"), "understory")
 
 
+class HookTests(unittest.TestCase):
+    def test_claude_code_helper_type_does_not_change_the_animal(self):
+        from webgentz_hook import transform
+        e = normalize_event(transform({"session_id": "s", "hook_event_name": "PreToolUse",
+                                       "tool_name": "Bash", "agent_type": "general-purpose"}))
+        self.assertEqual(e["agent_type"], "claude-code")
+
+
 if __name__ == "__main__":
     unittest.main()

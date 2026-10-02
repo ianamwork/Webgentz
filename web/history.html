@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Webgentz History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hud">
+    <div class="title">WEBGENTZ</div>
+    <nav class="stats">
+      <a href="./" class="navlink">JUNGLE</a>
+      <span class="navlink current">HISTORY</span>
+      <span id="hud-mode" class="mode"></span>
+    </nav>
+  </header>
+
+  <main class="history">
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Date range">
+        <button data-days="7">7 DAYS</button>
+        <button data-days="14" class="on">14 DAYS</button>
+        <button data-days="30">30 DAYS</button>
+      </div>
+      <div class="seg" role="group" aria-label="Measure">
+        <button data-measure="cost" class="on">DOLLARS</button>
+        <button data-measure="tokens">TOKENS</button>
+      </div>
+    </div>
+
+    <section class="tiles">
+      <div class="tile"><span>Today</span><b id="k-today">-</b></div>
+      <div class="tile"><span>Last 7 days</span><b id="k-week">-</b></div>
+      <div class="tile"><span>Tokens today</span><b id="k-tokens">-</b></div>
+      <div class="tile"><span>Agents today</span><b id="k-agents">-</b></div>
+    </section>
+
+    <section class="card">
+      <h2 id="chart-title">SPEND PER DAY BY LAYER</h2>
+      <div class="legend" id="legend"></div>
+      <div class="chart-wrap"><svg id="chart" role="img" aria-label="Daily spend by layer"></svg></div>
+      <div class="tip" id="tip" hidden></div>
+      <p class="note" id="cost-note" hidden>Some agents use models that are not in pricing.json, so their cost is not counted.</p>
+    </section>
+
+    <div class="two">
+      <section class="card">
+        <h2>AGENTS</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Agent</th><th>Layer</th><th class="num">Tokens</th><th class="num">Cost</th><th class="num">Tools</th><th class="num">Days</th></tr></thead>
+            <tbody id="agents"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="card">
+        <h2 id="timeline-title">TIMELINE</h2>
+        <button class="back" id="timeline-all" hidden>&#9664; ALL AGENTS</button>
+        <ol class="log timeline" id="timeline"></ol>
+      </section>
+    </div>
+  </main>
+
+  <script src="history.js"></script>
+</body>
+</html>

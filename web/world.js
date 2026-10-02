@@ -254,6 +254,7 @@
     "python":      { animal: "monkey", color: "#a8703f", label: "Python agent" },
     "gtm":         { animal: "toucan", color: "#ff8c1a", label: "GTM agent" },
     "research":    { animal: "toucan", color: "#3fb6e8", label: "Research agent" },
+    "claude-api":  { animal: "frog",   color: "#d97757", label: "Claude API" },
   };
   const kindOf = d => KINDS[d.agent_type] || { animal: "ant", color: "#d97757", label: d.agent_type || "Agent" };
 
@@ -419,6 +420,7 @@
   function bubbleText(a) {
     const s = a.data.status;
     if (s === "needs_you") return "!";
+    if (s === "stuck") return "?";
     if (s === "sleeping") return "Zz";
     if (s === "idle") return "♪";
     if (a.data.activity === "taking orders") return "…";
@@ -512,7 +514,7 @@
         px(ctx, x - 1, y - 47 - blink, 3, 3, "#ffd23f");
       }
       if (!a.path.length && a.data.status !== "gone") {
-        const urgent = a.data.status === "needs_you";
+        const urgent = a.data.status === "needs_you" || a.data.status === "stuck";
         const hop = urgent ? Math.round(Math.abs(Math.sin(clock * 6)) * 2) : 0;
         drawBubble(bubbleText(a), x, y - 32 - hop, urgent);
       }
@@ -549,7 +551,8 @@
   const $ = id => document.getElementById(id);
   const fmt = n => (n || 0).toLocaleString();
   const totalTokens = t => (t.input || 0) + (t.output || 0) + (t.cache_read || 0) + (t.cache_write || 0);
-  const STATUS_LABEL = { working: "WORKING", needs_you: "NEEDS YOU", idle: "RESTING", sleeping: "ASLEEP", gone: "LEFT" };
+  const STATUS_LABEL = { working: "WORKING", needs_you: "NEEDS YOU", stuck: "MAY BE STUCK", idle: "RESTING", sleeping: "ASLEEP", gone: "LEFT" };
+  const money = v => (v >= 100 ? `$${v.toFixed(0)}` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(3)}`);
 
   function placeName(d) {
     const spot = SPOTS[d.location] || SPOTS.square;
@@ -623,6 +626,7 @@
     $("a-prompts").textContent = fmt(d.prompts);
     for (const k of ["input", "output", "cache_read", "cache_write"]) $(`t-${k}`).textContent = fmt(d.tokens[k]);
     $("t-total").textContent = fmt(totalTokens(d.tokens));
+    $("t-cost").textContent = d.cost_known === false && !d.cost_usd ? "unknown" : money(d.cost_usd || 0) + (d.cost_known === false ? "+" : "");
 
     const tools = Object.entries(d.tool_counts || {}).sort((p, q) => q[1] - p[1]);
     const max = tools.length ? tools[0][1] : 1;
@@ -655,10 +659,11 @@
     else renderRoster();
 
     const live = [...agents.values()].filter(x => x.data.status !== "gone");
-    const stuck = live.filter(x => x.data.status === "needs_you").length;
+    const stuck = live.filter(x => x.data.status === "needs_you" || x.data.status === "stuck").length;
     health = live.length ? 1 - stuck / live.length : 1;
     $("hud-agents").textContent = `${live.length} agent${live.length === 1 ? "" : "s"}`;
     $("hud-tokens").textContent = `${fmt(live.reduce((s, x) => s + totalTokens(x.data.tokens), 0))} tokens`;
+    $("hud-cost").textContent = `${money(live.reduce((s, x) => s + (x.data.cost_usd || 0), 0))} spent`;
     $("hud-health").textContent = `tree ${health > 0.75 ? "thriving" : health > 0.4 ? "thirsty" : "wilting"}`;
   }
 
@@ -683,6 +688,7 @@
   const demo = window.WEBGENTZ_FORCE_DEMO || new URLSearchParams(location.search).has("demo") || location.protocol === "file:";
   if (demo) {
     $("hud-mode").textContent = "DEMO";
+    $("hud-history").href = "history.html?demo";
     window.WebgentzDemo.start(receive);
   } else {
     const source = new EventSource("stream");
@@ -690,13 +696,17 @@
     source.onerror = () => { $("ticker").textContent = "Lost contact with the jungle server. Is server.py running?"; };
   }
 
-  // Every second: send quiet agents to sleep and keep "active for" ticking.
+  // Every second: send quiet agents to sleep, flag quiet workers, and keep "active for" ticking.
   setInterval(() => {
     let changed = false;
     for (const a of agents.values()) {
       const d = a.data;
-      if (d.status !== "gone" && d.status !== "sleeping" && Date.now() / 1000 - d.last_seen > 600) {
+      const quiet = Date.now() / 1000 - d.last_seen;
+      if (d.status === "idle" && quiet > 600) {
         a.data = { ...d, status: "sleeping", location: "houses", activity: "asleep" };
+        changed = true;
+      } else if (d.status === "working" && quiet > 300) {
+        a.data = { ...d, status: "stuck", activity: "quiet for a while, may be stuck" };
         changed = true;
       }
     }
