@@ -602,7 +602,7 @@
     renderPanel();
   }
 
-  const demo = new URLSearchParams(location.search).has("demo") || location.protocol === "file:";
+  const demo = window.WEBGENTZ_FORCE_DEMO || new URLSearchParams(location.search).has("demo") || location.protocol === "file:";
   if (demo) {
     $("hud-mode").textContent = "DEMO";
     window.WebgentzDemo.start(receive);
