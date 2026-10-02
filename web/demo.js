@@ -1,4 +1,4 @@
-// Demo mode: invents a few busy agents so you can see the village without
+// Demo mode: invents a few busy agents so you can see the jungle without
 // running Claude Code. Open the page with ?demo at the end of the address.
 // The fake agents look exactly like what server.py sends.
 
@@ -11,15 +11,26 @@ window.WebgentzDemo = (() => {
     { tool: "Write", location: "workshop", activity: "building", things: ["report.md", "email_draft.txt"] },
     { tool: "Bash", location: "forge", activity: "running commands", things: ["npm test", "python3 analysis.py", "git status"] },
     { tool: "Task", location: "barracks", activity: "briefing a helper", things: ["Summarize the sales calls"] },
-    { tool: "mcp__gmail__search", location: "market", activity: "trading with an outside tool", things: ["inbox: leads"] },
+    { tool: "mcp__gmail__search", location: "market", activity: "using an outside tool", things: ["inbox: leads"] },
     { tool: "TodoWrite", location: "townhall", activity: "planning", things: ["plan the week"] },
   ];
 
+  // One crew per layer of the tree: infrastructure, product, and GTM.
   const CREW = [
-    { project: "webgentz", job: "Build the village" },
-    { project: "sales-outreach", job: "Draft follow-ups for 20 leads" },
-    { project: "market-research", job: "Compare agent observability tools" },
-    { project: "thesis-data", job: "Clean the survey data in R" },
+    { project: "infra-terraform", type: "claude-code", layer: "roots", job: "Set up the database backups",
+      open: { app: "Terminal" }, answer: "Nightly backups now run at 2am and keep 14 days. I tested a restore into a scratch database and it worked." },
+    { project: "api-server", type: "codex", layer: "roots", job: "Speed up the slow /events endpoint",
+      open: { app: "iTerm2" }, answer: "Added an index on (session_id, received). The endpoint went from 840ms to 95ms." },
+    { project: "webgentz-app", type: "claude-code", layer: "understory", job: "Build the jungle view",
+      open: { app: "Cursor" }, answer: "The jungle view is done. Agents climb the trunk between layers and the leaves wilt when someone is stuck." },
+    { project: "onboarding-flow", type: "openai", layer: "understory", job: "Fix the signup form bugs",
+      open: { url: "https://example.com/runs/onboarding" }, answer: "Fixed 3 bugs: the email check, the double submit, and the error message that never cleared." },
+    { project: "sales-outreach", type: "gtm", layer: "canopy", job: "Draft follow-ups for 20 leads",
+      open: { url: "https://example.com/drafts" }, answer: "20 drafts are ready in Gmail. 4 leads asked for pricing, so those drafts include the one-pager." },
+    { project: "market-research", type: "research", layer: "canopy", job: "Compare agent observability tools",
+      open: { app: "Claude" }, answer: "Compared 6 tools. None show agents across providers in one place, and only two track cost per agent." },
+    { project: "launch-posts", type: "python", layer: "canopy", job: "Write the launch thread",
+      open: { url: "https://example.com/launch" }, answer: "The launch thread has 7 posts and is saved as a draft." },
   ];
 
   const pick = list => list[Math.floor(Math.random() * list.length)];
@@ -32,6 +43,8 @@ window.WebgentzDemo = (() => {
       id,
       name: `${member.project}-${id.slice(0, 4)}`,
       project: member.project,
+      agent_type: member.type,
+      layer: member.layer,
       cwd: `~/code/${member.project}`,
       model: pick(["claude-opus-5-5", "claude-sonnet-5-5"]),
       status: "idle",
@@ -41,26 +54,38 @@ window.WebgentzDemo = (() => {
       started: now - Math.random() * 1800,
       last_seen: now,
       tokens: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+      cost_usd: 0,
+      cost_known: !["openai", "codex"].includes(member.type),
       tool_counts: {},
       prompts: 0,
       recent: [],
       job: member.job,
+      open: member.open,
+      answer: "",
+      demoAnswer: member.answer,
     };
   }
 
   function step(agent) {
     const now = Date.now() / 1000;
+    // finished agents stay finished for a while, so you can click them
+    if (agent.status === "idle" && agent.prompts && Math.random() < 0.65) {
+      return { ...agent, tokens: { ...agent.tokens }, tool_counts: { ...agent.tool_counts }, recent: [...agent.recent] };
+    }
     const roll = Math.random();
     let text;
     if (agent.prompts === 0 || roll < 0.08) {
       agent.prompts++;
-      Object.assign(agent, { status: "working", location: "townhall", activity: "taking orders", detail: agent.job });
+      Object.assign(agent, { status: "working", location: "townhall", activity: "taking orders", detail: agent.job, answer: "" });
       text = `New orders: ${agent.job}`;
     } else if (roll < 0.14) {
       Object.assign(agent, { status: "needs_you", location: "townhall", activity: "waiting for you", detail: "Claude needs your permission to use Bash" });
       text = agent.detail;
-    } else if (roll < 0.22) {
-      Object.assign(agent, { status: "idle", location: "campfire", activity: "resting", detail: "Finished the job" });
+    } else if (roll < 0.17) {
+      Object.assign(agent, { status: "stuck", activity: "a long tool run, may be stuck", detail: "Bash: npm run build" });
+      text = "Quiet for 5 minutes during a long command";
+    } else if (roll < 0.3) {
+      Object.assign(agent, { status: "idle", location: "campfire", activity: "resting", detail: "Finished the job", answer: agent.demoAnswer });
       text = "Finished and resting at the campfire";
     } else {
       const t = pick(TOOLS);
@@ -74,6 +99,7 @@ window.WebgentzDemo = (() => {
     agent.tokens.output += Math.floor(k * 0.3);
     agent.tokens.cache_read += k * 6;
     agent.tokens.cache_write += Math.floor(k * 0.8);
+    if (agent.cost_known) agent.cost_usd += (k * 0.05 * 4 + k * 0.3 * 20 + k * 6 * 0.4 + k * 0.8 * 5) / 1e6;
     agent.last_seen = now;
     agent.recent.push({ time: now, kind: "demo", text });
     agent.recent = agent.recent.slice(-40);
@@ -91,7 +117,7 @@ window.WebgentzDemo = (() => {
           setTimeout(loop, 2500 + Math.random() * 4500);
         };
         setTimeout(loop, 2000 + Math.random() * 3000);
-      }, 600 + i * 1400);
+      }, 400 + i * 900);
     });
   }
 

@@ -1,0 +1,11 @@
+{
+  "default_layer": "understory",
+  "layers": {
+    "infra": "roots",
+    "backend": "roots",
+    "app": "understory",
+    "frontend": "understory",
+    "sales": "canopy",
+    "marketing": "canopy"
+  }
+}
