@@ -129,6 +129,30 @@ before forwarding). A rejected key shows the agent as "needs you".
 logs in `~/.codex/sessions/`. Codex does not log approval requests, so Codex
 agents never show "needs you".
 
+**Claude chats in your browser.** The `browser_extension` folder is a small
+Chrome extension that watches your open claude.ai tabs. Each open chat becomes
+an agent (a toucan): it shows "working" while Claude is answering, "done" (with
+the answer) when it finishes, and clicking it reopens the chat.
+
+1. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**,
+   and pick the `browser_extension` folder.
+2. Reload any claude.ai tabs that were already open.
+
+Chats inside a Claude project are named after the project, and their folder is
+`claude/<project name>`, so you can put a project on a layer in `webgentz.json`,
+for example `"layers": {"claude/Rainforest book": "canopy"}`. Chats outside a
+project use `claude/chats`.
+
+What it cannot see: chats that are not open in a tab (on your phone, or a tab you
+closed while it was still answering), and exact token counts (claude.ai does not
+show them, and a subscription has no per-token price). It reads only the page
+already on your screen and sends only to your own computer. The page markers it
+looks for were written without checking the live site, so if chats show up but
+never say "working", the selectors at the top of `content.js` need updating.
+
+The same extension has settings for ChatGPT and Grok tabs, switched off for now.
+To try them, add their sites to `matches` in `manifest.json`.
+
 **Anything else.** Send JSON to `POST /event`. The format is written down in
 [EVENTS.md](EVENTS.md) and will not change in ways that break old senders.
 
