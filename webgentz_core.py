@@ -65,6 +65,8 @@ TOOL_LOCATIONS = {
     "exec_command": "forge", "local_shell": "forge", "write_stdin": "forge",
     "apply_patch": "workshop", "web_search": "library", "view_image": "library",
     "update_plan": "townhall",
+    # ChatGPT and Grok tabs (browser_extension/)
+    "Thinking": "townhall", "Writing": "workshop", "Searching": "library",
 }
 
 LOCATION_ACTIVITY = {

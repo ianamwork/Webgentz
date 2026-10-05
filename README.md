@@ -129,6 +129,26 @@ before forwarding). A rejected key shows the agent as "needs you".
 logs in `~/.codex/sessions/`. Codex does not log approval requests, so Codex
 agents never show "needs you".
 
+**ChatGPT and Grok chats in your browser.** The `browser_extension` folder is a
+small Chrome extension that watches your open chatgpt.com and grok.com tabs. Each
+open chat becomes an agent: it shows "working" while the Stop button is up,
+"done" (with the answer) when it finishes, and clicking it reopens the chat.
+
+1. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**,
+   and pick the `browser_extension` folder.
+2. Reload any ChatGPT or Grok tabs that were already open.
+
+ChatGPT projects get their own folder name, so you can put them on a layer in
+`webgentz.json`, for example `"layers": {"chatgpt/launch-plans": "canopy"}`.
+Plain chats use `chatgpt/chats` and `grok/chats`.
+
+What it cannot see: chats that are not open in a tab (on your phone, or a tab you
+closed while it was still answering), and exact token counts (the sites do not
+show them, and a subscription has no per-token price). It reads only the page
+already on your screen and sends only to your own computer. Grok's page layout
+was guessed rather than checked on the real site, so if Grok chats show up but
+never say "working", the selectors at the top of `content.js` need updating.
+
 **Anything else.** Send JSON to `POST /event`. The format is written down in
 [EVENTS.md](EVENTS.md) and will not change in ways that break old senders.
 

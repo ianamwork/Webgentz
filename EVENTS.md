@@ -50,7 +50,7 @@ Claude Code's own hook names are accepted too and mean the same thing:
 | `v`              | no       | number | format version, always `1` (assumed if missing) |
 | `session_id`     | **yes**  | string | the same for every event from one agent run |
 | `event`          | **yes**  | string | one of the events above |
-| `agent_type`     | no       | string | decides the animal: `claude-code`, `codex`, `openai`, `grok`, `gemini`, `python`, `gtm`, `research` (unknown types become ants) |
+| `agent_type`     | no       | string | decides the animal: `claude-code`, `codex`, `openai`, `chatgpt`, `grok`, `gemini`, `python`, `gtm`, `research` (unknown types become ants) |
 | `name`           | no       | string | the name shown in the jungle (default: project folder + id) |
 | `layer`          | no       | string | `roots`, `understory` or `canopy` (default: from `webgentz.json`) |
 | `cwd`            | no       | string | the agent's project folder, used to pick a layer |

@@ -353,11 +353,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _from_other_website(self):
-        """Browsers say which site a request came from. Only our own page may post."""
+        """Browsers say which site a request came from. Only our own page, and
+        browser extensions you installed (like the chat-tabs one), may post."""
         origin = self.headers.get("Origin")
         if not origin:
             return False  # scripts and hooks, not a browser
-        return urlparse(origin).hostname not in ("localhost", "127.0.0.1", "::1")
+        url = urlparse(origin)
+        if url.scheme in ("chrome-extension", "moz-extension"):
+            return False
+        return url.hostname not in ("localhost", "127.0.0.1", "::1")
 
     def do_POST(self):
         path = urlparse(self.path).path
