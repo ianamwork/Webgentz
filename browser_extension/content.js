@@ -1,4 +1,4 @@
-// Watches one ChatGPT or Grok tab and reports the open chat to Webgentz.
+// Watches one claude.ai (or ChatGPT or Grok) tab and reports the open chat to Webgentz.
 //
 // It only reads what is already on the page (the chat title, the messages,
 // and whether the Stop button is showing). It never clicks, types, or calls
@@ -6,43 +6,68 @@
 // which posts them to the jungle on this computer.
 
 (() => {
-  const host = location.hostname;
-  const SITE = host === "grok.com"
-    ? {
-        key: "grok",
-        label: "Grok",
-        agentType: "grok",
-        titleSuffix: / [-–|] Grok$/,
-        // Grok's markup is less stable than ChatGPT's, so these are guesses
-        // to check against the real page (see README).
-        user: '[data-testid="user-message"], .message-row.items-end .message-bubble, div.items-end .message-bubble',
-        assistant: '[data-testid="assistant-message"], .message-row.items-start .message-bubble, div.items-start .message-bubble',
-      }
-    : {
-        key: "chatgpt",
-        label: "ChatGPT",
-        agentType: "chatgpt",
-        titleSuffix: / [-–|] ChatGPT$/,
-        user: '[data-message-author-role="user"]',
-        assistant: '[data-message-author-role="assistant"]',
-      };
+  // What to read on each site. Only claude.ai is switched on in
+  // manifest.json for now; the others stay here to turn back on later.
+  const SITES = {
+    "claude.ai": {
+      key: "claude",
+      label: "Claude",
+      agentType: "claude-chat",
+      titleSuffix: / [-–|] Claude$/,
+      chatPath: /\/chat\/([\w-]+)/,
+      user: '[data-testid="user-message"]',
+      assistant: '[data-is-streaming]',
+      // A chat inside a project shows the project's name as a link at the top.
+      projectLink: 'a[href^="/project/"]',
+    },
+    "chatgpt.com": {
+      key: "chatgpt",
+      label: "ChatGPT",
+      agentType: "chatgpt",
+      titleSuffix: / [-–|] ChatGPT$/,
+      chatPath: /\/c\/([\w-]+)/,
+      user: '[data-message-author-role="user"]',
+      assistant: '[data-message-author-role="assistant"]',
+    },
+    "grok.com": {
+      key: "grok",
+      label: "Grok",
+      agentType: "grok",
+      titleSuffix: / [-–|] Grok$/,
+      chatPath: /\/c\/([\w-]+)/,
+      user: '[data-testid="user-message"], .message-row.items-end .message-bubble, div.items-end .message-bubble',
+      assistant: '[data-testid="assistant-message"], .message-row.items-start .message-bubble, div.items-start .message-bubble',
+    },
+  };
+  SITES["chat.openai.com"] = SITES["chatgpt.com"];
+  const SITE = SITES[location.hostname];
+  if (!SITE) return;
 
   // The Stop button only shows while the model is answering.
   const STOP = '[data-testid="stop-button"], button[aria-label*="stop" i]';
+  const STREAMING = '[data-is-streaming="true"]'; // claude.ai marks the answer being written
   const SEARCHING = /searching( the web)?|reading sources|browsing/i;
   const HEARTBEAT_MS = 2 * 60 * 1000; // so long answers do not look stuck
   const CHECK_GAP_MS = 500;
 
   let current = null; // what we last reported about the open chat
   let lastCheck = 0;
+  let trailing = null;
 
   function chatInfo() {
-    const path = location.pathname;
-    const chat = path.match(/\/c\/([\w-]+)/) || new URLSearchParams(location.search).get("chat")?.match(/(.+)/);
+    const chat = location.pathname.match(SITE.chatPath);
     if (!chat) return null; // a brand-new chat has no id until the first message is sent
+    return { id: chat[1], project: projectName() };
+  }
+
+  function projectName() {
+    if (SITE.projectLink) {
+      const link = document.querySelector(SITE.projectLink);
+      return link ? (link.innerText || "").trim().slice(0, 60) : "";
+    }
     // ChatGPT projects live under /g/g-p-<id>-<name>/c/<chat>.
-    const project = path.match(/\/g\/g-p-[0-9a-f]+-([\w-]+)/i);
-    return { id: chat[1], project: project ? project[1] : "" };
+    const project = location.pathname.match(/\/g\/g-p-[0-9a-f]+-([\w-]+)/i);
+    return project ? project[1] : "";
   }
 
   function chatTitle() {
@@ -57,6 +82,7 @@
   }
 
   function isWorking() {
+    if (document.querySelector(STREAMING)) return true;
     return [...document.querySelectorAll(STOP)].some((b) => b.offsetParent !== null);
   }
 
@@ -102,6 +128,7 @@
       send({ event: "start" });
     }
     current.title = chatTitle();
+    current.project = info.project || current.project;
     current.url = location.href;
 
     const now = Date.now();
@@ -129,7 +156,11 @@
 
   function maybeCheck() {
     const now = Date.now();
-    if (now - lastCheck < CHECK_GAP_MS) return;
+    if (now - lastCheck < CHECK_GAP_MS) {
+      // Too soon; check once more shortly so the last change is not missed.
+      if (!trailing) trailing = setTimeout(() => { trailing = null; maybeCheck(); }, CHECK_GAP_MS);
+      return;
+    }
     lastCheck = now;
     check();
   }
@@ -138,7 +169,7 @@
   // catches answers even in background tabs, where timers are slowed down.
   new MutationObserver(maybeCheck).observe(document.documentElement, {
     subtree: true, childList: true, characterData: true, attributes: true,
-    attributeFilter: ["data-testid", "aria-label", "disabled"],
+    attributeFilter: ["data-testid", "aria-label", "disabled", "data-is-streaming"],
   });
   setInterval(maybeCheck, 2000);
   maybeCheck();

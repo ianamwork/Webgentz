@@ -538,6 +538,7 @@
     "claude-code": { animal: "ant",    color: "#d97757", label: "Claude Code" },
     "codex":       { animal: "beetle", color: "#2fa39a", label: "Codex" },
     "openai":      { animal: "frog",   color: "#4caf50", label: "OpenAI API" },
+    "claude-chat": { animal: "toucan", color: "#d97757", label: "Claude chat" },
     "chatgpt":     { animal: "frog",   color: "#10a37f", label: "ChatGPT" },
     "grok":        { animal: "beetle", color: "#4a4a58", label: "Grok" },
     "gemini":      { animal: "frog",   color: "#4f7fe0", label: "Gemini" },
