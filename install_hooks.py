@@ -1,7 +1,7 @@
-"""Connect Claude Code to the Webgentz village.
+"""Connect Claude Code to the Webgentz jungle.
 
 Adds the Webgentz hook to your Claude Code settings so every session reports
-to the village. Your existing settings are kept, and a backup copy is saved
+to the jungle. Your existing settings are kept, and a backup copy is saved
 next to the file before anything changes.
 
     python3 install_hooks.py              # add the hook to ~/.claude/settings.json
@@ -89,7 +89,7 @@ def main():
         print(f"Removed the Webgentz hook from {path}")
     else:
         print(f"Added the Webgentz hook to {path}")
-        print("New Claude Code sessions will now show up in the village.")
+        print("New Claude Code sessions will now show up in the jungle.")
 
 
 if __name__ == "__main__":

@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Webgentz Village</title>
+  <title>Webgentz Jungle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,14 +14,17 @@
     <div class="stats">
       <span id="hud-agents">0 agents</span>
       <span id="hud-tokens">0 tokens</span>
+      <span id="hud-cost">$0 spent</span>
+      <span id="hud-health">tree thriving</span>
+      <a href="history.html" class="navlink" id="hud-history">HISTORY</a>
       <span id="hud-mode" class="mode"></span>
     </div>
   </header>
 
   <main class="layout">
     <section class="world-wrap">
-      <canvas id="world" width="576" height="320" aria-label="Village map with your agents"></canvas>
-      <div class="textbox" id="ticker">Welcome to the village!</div>
+      <canvas id="world" width="576" height="384" aria-label="Jungle tree with your agents on its layers"></canvas>
+      <div class="textbox" id="ticker">Welcome to the jungle!</div>
     </section>
 
     <aside class="panel" id="panel">
@@ -37,8 +40,17 @@
       <div id="panel-agent" hidden>
         <button class="back" id="back">&#9664; ALL AGENTS</button>
         <h2 id="a-name"></h2>
-        <div class="badge" id="a-status"></div>
+        <div class="status-row">
+          <div class="badge" id="a-status"></div>
+          <button class="jump" id="a-open" hidden></button>
+        </div>
+        <div id="a-answer-box" hidden>
+          <h3>ANSWER</h3>
+          <div class="answer" id="a-answer"></div>
+        </div>
         <dl class="facts">
+          <dt>Kind</dt><dd id="a-kind"></dd>
+          <dt>Where</dt><dd id="a-layer"></dd>
           <dt>Doing</dt><dd id="a-activity"></dd>
           <dt>Detail</dt><dd id="a-detail"></dd>
           <dt>Project</dt><dd id="a-project"></dd>
@@ -53,6 +65,7 @@
           <div><span>Cache read</span><b id="t-cache_read"></b></div>
           <div><span>Cache write</span><b id="t-cache_write"></b></div>
           <div class="total"><span>Total</span><b id="t-total"></b></div>
+          <div><span>Cost</span><b id="t-cost"></b></div>
         </div>
         <h3>TOOLS USED</h3>
         <ul class="bars" id="a-tools"></ul>
