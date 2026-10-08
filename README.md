@@ -9,11 +9,23 @@ your company:
 - **Understory: product.** Apps, front end and maintenance.
 - **Roots: infrastructure.** The agents building what everything stands on.
 
-Each kind of agent is a different animal (Claude Code agents are ants, GTM
-agents are toucans, and so on). Agents climb the trunk when they move between
-layers, and walk along their branch to show what they are doing right now.
-Click any agent to see its tokens, the tools it has used, and its recent
-activity. When agents are stuck waiting for you, the tree's leaves start to wilt.
+Each kind of agent is a different animal. The primary roster:
+
+| `agent_type` | Animal | Layer |
+|---|---|---|
+| `infra` | Termite (ant) | Roots |
+| `backend` | Anaconda (snake) | Roots |
+| `frontend` | Tree frog | Understory |
+| `ux` | Hummingbird | Understory |
+| `pm` | Spider monkey | Understory |
+| `marketing` | Toucan | Canopy |
+| `sales` | Macaw (parrot) | Canopy |
+| `research` | Owl | Canopy |
+
+Agents climb the trunk when they move between layers, and walk along their
+branch to show what they are doing right now. Click any agent to see its
+tokens, the tools it has used, and its recent activity. When agents are stuck
+waiting for you, the tree's leaves start to wilt.
 
 ## Try it in 30 seconds (no setup)
 
