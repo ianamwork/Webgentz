@@ -4,6 +4,11 @@ Claude Code runs this script on each hook event and passes a JSON description
 of the event on stdin. We forward it to the local server and exit straight
 away. If the jungle server is not running, we stay silent so Claude Code is
 never slowed down or interrupted.
+
+Context injection:
+On the first UserPromptSubmit of each session, the hook fetches You.md and
+Org.md from /api/memory/context and outputs them as hookSpecificOutput so
+Claude Code injects them before the agent's first real turn.
 """
 
 import json
@@ -12,7 +17,8 @@ import subprocess
 import sys
 import urllib.request
 
-URL = os.environ.get("WEBGENTZ_URL", "http://127.0.0.1:8765") + "/event"
+BASE_URL = os.environ.get("WEBGENTZ_URL", "http://127.0.0.1:8765")
+URL = BASE_URL + "/event"
 
 
 # The app Claude Code is running in, so clicking the agent can bring it back.
@@ -86,6 +92,31 @@ def transform(payload):
     return payload
 
 
+def _context_flag(session_id):
+    return f"/tmp/webgentz-ctx-{session_id}"
+
+
+def _context_already_injected(session_id):
+    return session_id and os.path.exists(_context_flag(session_id))
+
+
+def _mark_context_injected(session_id):
+    try:
+        open(_context_flag(session_id), "w").close()
+    except OSError:
+        pass
+
+
+def fetch_context():
+    """Fetch You.md + Org.md from the server and return them as a single string."""
+    resp = urllib.request.urlopen(BASE_URL + "/api/memory/context", timeout=2)
+    data = json.loads(resp.read())
+    pages = data.get("pages", [])
+    if not pages:
+        return None
+    return "\n\n---\n\n".join(p["content"].strip() for p in pages)
+
+
 def main():
     try:
         payload = transform(json.loads(sys.stdin.read()))
@@ -95,6 +126,19 @@ def main():
         urllib.request.urlopen(request, timeout=1).close()
     except Exception:
         pass
+
+    # Inject You.md + Org.md once per session, on the first prompt.
+    if payload.get("hook_event_name") == "UserPromptSubmit":
+        session_id = payload.get("session_id", "")
+        if not _context_already_injected(session_id):
+            try:
+                ctx = fetch_context()
+                if ctx:
+                    _mark_context_injected(session_id)
+                    print(json.dumps({"hookSpecificOutput": ctx}))
+            except Exception:
+                pass
+
     sys.exit(0)
 
 

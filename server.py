@@ -24,9 +24,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from memory import ObsidianMemory
 from webgentz_core import EventError, LayerConfig, Pricing, World, normalize_event
 
 HOST = os.environ.get("WEBGENTZ_HOST", "127.0.0.1")
+MEMORY_PATH = os.environ.get("WEBGENTZ_MEMORY")
 PORT = int(os.environ.get("WEBGENTZ_PORT", "8765"))
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "web"
@@ -40,6 +42,19 @@ NOTIFY = os.environ.get("WEBGENTZ_NOTIFY", "1") != "0"
 # Say when an agent finishes a task that took at least this long.
 DONE_ALERT_AFTER_SECONDS = int(os.environ.get("WEBGENTZ_DONE_ALERT_SECONDS", "60"))
 MAX_EVENT_BYTES = 256 * 1024
+
+# Origins allowed to POST /event from a browser (the tracker userscript).
+# These are AI web tools whose pages run the tracker.user.js userscript.
+TRACKER_ORIGINS = frozenset([
+    "https://chatgpt.com",
+    "https://chat.openai.com",
+    "https://grok.com",
+    "https://x.com",
+    "https://claude.ai",
+    "https://gemini.google.com",
+    "https://www.perplexity.ai",
+    "https://copilot.microsoft.com",
+])
 
 
 def day_of(timestamp):
@@ -231,6 +246,77 @@ end run
 # Editors open the agent's project folder, which focuses the right window.
 EDITORS = ("Visual Studio Code", "Cursor", "Windsurf", "Zed")
 
+# AppleScript that opens a new terminal tab and runs `claude` in the given directory.
+# The directory is passed as argv[1] so it never needs to be string-escaped inline.
+TERMINAL_SPAWN_SCRIPT = """
+on run argv
+  set cwd to item 1 of argv
+  tell application "Terminal"
+    activate
+    do script "cd " & quoted form of cwd & " && claude"
+  end tell
+end run
+"""
+
+ITERM_SPAWN_SCRIPT = """
+on run argv
+  set cwd to item 1 of argv
+  if application "iTerm2" is running then
+    tell application "iTerm2"
+      activate
+      tell current window
+        create tab with default profile
+        tell current session
+          write text "cd " & quoted form of cwd & " && claude"
+        end tell
+      end tell
+    end tell
+    return "ok"
+  else
+    return "not running"
+  end if
+end run
+"""
+
+
+# ---------------------------------------------------------------- closing a session
+
+TERMINAL_CLOSE_SCRIPT = """
+on run argv
+  set target to item 1 of argv
+  tell application "Terminal"
+    repeat with w in windows
+      repeat with t in tabs of w
+        if tty of t is target then
+          close t
+          return "closed"
+        end if
+      end repeat
+    end repeat
+  end tell
+  return "not found"
+end run
+"""
+
+ITERM_CLOSE_SCRIPT = """
+on run argv
+  set target to item 1 of argv
+  tell application "iTerm2"
+    repeat with w in windows
+      repeat with t in tabs of w
+        repeat with s in sessions of t
+          if tty of s is target then
+            close s
+            return "closed"
+          end if
+        end repeat
+      end repeat
+    end repeat
+  end tell
+  return "not found"
+end run
+"""
+
 
 def open_command(agent, platform=sys.platform):
     """The command that brings an agent's window to the front, and a label for it.
@@ -272,6 +358,68 @@ def open_agent(agent_id):
     return 200, {"ok": True, "opened": label}
 
 
+def close_command(agent, platform=sys.platform):
+    """The command that closes an agent's terminal tab.
+
+    Returns (None, reason) when remote close is not supported.
+    """
+    where = agent.get("open") or {}
+    app, tty = where.get("app"), where.get("tty")
+    if platform == "darwin":
+        if app == "Terminal" and tty:
+            return ["osascript", "-e", TERMINAL_CLOSE_SCRIPT, tty], "Terminal"
+        if app == "iTerm2" and tty:
+            return ["osascript", "-e", ITERM_CLOSE_SCRIPT, tty], "iTerm2"
+    return None, "Remote close is only supported for Terminal and iTerm2 on Mac"
+
+
+def close_agent(agent_id):
+    agent = next((a for a in world.snapshot() if a["id"] == agent_id), None)
+    if agent is None:
+        return 404, {"error": "no agent with that id"}
+    command, label = close_command(agent)
+    if command is None:
+        return 409, {"error": label}
+    tty = (agent.get("open") or {}).get("tty", "")
+    short_tty = tty.replace("/dev/", "")
+    # Kill all processes on the tty so the terminal tab closes without a prompt.
+    if short_tty:
+        subprocess.run(["pkill", "-9", "-t", short_tty], capture_output=True)
+    try:
+        subprocess.run(command, capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return 500, {"error": f"could not close {label}: {exc}"}
+    # Inject an end event so the agent walks to the gate and fades out.
+    try:
+        ingest({"session_id": agent_id, "event": "end",
+                "agent_type": agent.get("agent_type", "claude-code")})
+    except EventError:
+        pass
+    return 200, {"ok": True, "closed": label}
+
+
+def spawn_session(cwd, platform=sys.platform):
+    """Open a new terminal tab and run `claude` in the given directory."""
+    if not isinstance(cwd, str) or not cwd.strip():
+        return 400, {"error": "send {\"cwd\": \"/path/to/project\"}"}
+    cwd = os.path.expanduser(cwd.strip())
+    if not os.path.isdir(cwd):
+        return 400, {"error": f"directory not found: {cwd}"}
+    if platform != "darwin":
+        return 409, {"error": "Spawning sessions only works on a Mac for now"}
+    for script, app in [(ITERM_SPAWN_SCRIPT, "iTerm2"), (TERMINAL_SPAWN_SCRIPT, "Terminal")]:
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script, cwd],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip() != "not running":
+                return 200, {"ok": True, "spawned": app, "cwd": cwd}
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+    return 500, {"error": "could not open a terminal — is Terminal or iTerm2 running?"}
+
+
 # ---------------------------------------------------------------- live updates
 
 class Broadcaster:
@@ -304,6 +452,7 @@ store = Store(DB_PATH)
 world = World(layers=LayerConfig(CONFIG_PATH), pricing=Pricing(PRICING_PATH))
 broadcaster = Broadcaster()
 notifier = Notifier(NOTIFY)
+memory = ObsidianMemory(MEMORY_PATH)
 
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -321,6 +470,8 @@ def ingest(raw):
     store.add(event, agent, change)
     broadcaster.send({"type": "agent", "agent": agent})
     notifier.check(agent)
+    if event["event"] == "done":
+        memory.write_completion(agent)
     return agent
 
 
@@ -344,24 +495,54 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # keep the terminal quiet
 
+    def _is_tracker_origin(self, origin):
+        """True for AI web tool origins and browser extensions running the tracker."""
+        if not origin:
+            return False
+        scheme = urlparse(origin).scheme
+        if scheme in ("chrome-extension", "moz-extension", "safari-web-extension"):
+            return True
+        return origin in TRACKER_ORIGINS
+
     def _json(self, status, payload):
         body = json.dumps(payload).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        origin = self.headers.get("Origin", "")
+        if self._is_tracker_origin(origin):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
         self.wfile.write(body)
 
     def _from_other_website(self):
-        """Browsers say which site a request came from. Only our own page may post."""
+        """Browsers say which site a request came from. Only our own page and
+        known AI tool origins (for the tracker userscript) may post."""
         origin = self.headers.get("Origin")
         if not origin:
             return False  # scripts and hooks, not a browser
-        return urlparse(origin).hostname not in ("localhost", "127.0.0.1", "::1")
+        if urlparse(origin).hostname in ("localhost", "127.0.0.1", "::1"):
+            return False
+        return not self._is_tracker_origin(origin)
+
+    def do_OPTIONS(self):
+        """Handle preflight CORS requests from the tracker userscript."""
+        origin = self.headers.get("Origin", "")
+        if self._is_tracker_origin(origin):
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        else:
+            self.send_response(405)
+            self.end_headers()
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/event", "/api/open"):
+        if path not in ("/event", "/api/open", "/api/close", "/api/spawn"):
             return self._json(404, {"error": "not found"})
         if self._from_other_website():
             return self._json(403, {"error": "requests from other websites are not allowed"})
@@ -376,6 +557,14 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict) or not isinstance(body.get("id"), str):
                 return self._json(400, {"error": "send {\"id\": \"<agent id>\"}"})
             return self._json(*open_agent(body["id"]))
+        if path == "/api/close":
+            if not isinstance(body, dict) or not isinstance(body.get("id"), str):
+                return self._json(400, {"error": "send {\"id\": \"<agent id>\"}"})
+            return self._json(*close_agent(body["id"]))
+        if path == "/api/spawn":
+            if not isinstance(body, dict) or not isinstance(body.get("cwd"), str):
+                return self._json(400, {"error": "send {\"cwd\": \"/path/to/project\"}"})
+            return self._json(*spawn_session(body["cwd"]))
         try:
             ingest(body)
         except EventError as exc:
@@ -390,6 +579,16 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/daily":
             days = max(1, min(366, int((query.get("days") or ["14"])[0])))
             return self._json(200, {"days": days, "rows": store.daily(days)})
+        if url.path == "/api/memory":
+            n = max(1, min(200, int((query.get("n") or ["20"])[0])))
+            project = (query.get("project") or [None])[0]
+            q = (query.get("q") or [None])[0]
+            vault = memory.vault or ""
+            if q:
+                return self._json(200, {"vault": vault, "query": q, "results": memory.search(q, n, project)})
+            return self._json(200, {"vault": vault, "completions": memory.recent(n, project)})
+        if url.path == "/api/memory/context":
+            return self._json(200, {"vault": memory.vault or "", "pages": memory.context_pages()})
         if url.path == "/api/timeline":
             session = (query.get("session") or [None])[0]
             limit = max(1, min(1000, int((query.get("limit") or ["200"])[0])))
@@ -434,6 +633,17 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    # Read memory_path from webgentz.json if not set by env var.
+    if not memory.vault and CONFIG_PATH.exists():
+        try:
+            cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            if isinstance(cfg.get("memory_path"), str):
+                memory.vault = os.path.expanduser(cfg["memory_path"])
+        except (OSError, ValueError):
+            pass
+    if memory.vault:
+        print(f"Writing agent memory to {memory.vault}")
+
     store.prune(KEEP_DAYS)
     # Rebuild the live view from the last day of events. Daily totals are
     # already saved, so replaying does not count anything twice.

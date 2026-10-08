@@ -12,14 +12,14 @@
   "use strict";
 
   const W = 576;
-  const H = 384;
+  const H = 480;
   // Keep the game's compact map coordinates, but paint at 2× so fine curves,
   // edges and the little critters stay crisp on modern displays.
   const RENDER_SCALE = 2;
   const TRUNK_X = 288;     // centre of the trunk, also the climbing line
-  const GROUND_Y = 272;    // where the soil starts
-  const TUNNEL_TOP = 300;  // the infrastructure tunnel under the tree
-  const TUNNEL_FLOOR = 358;
+  const GROUND_Y = 340;    // where the soil starts
+  const TUNNEL_TOP = 390;  // the infrastructure tunnel under the tree
+  const TUNNEL_FLOOR = 460;
   const SPEED = 110;       // pixels per second
   const SIZE = 2;          // creatures are drawn at double size
 
@@ -69,9 +69,9 @@
 
   // `y` is where creatures' feet rest on each layer.
   const LAYERS = {
-    canopy:     { y: 104, label: "CANOPY", sub: "GROWTH & GTM", color: "#f4c542" },
-    understory: { y: 212, label: "UNDERSTORY", sub: "PRODUCT", color: "#ff8a5c" },
-    roots:      { y: 358, label: "ROOTS", sub: "INFRASTRUCTURE", color: "#c9a27a" },
+    canopy:     { y: 130, label: "CANOPY", sub: "GROWTH & GTM", color: "#f4c542" },
+    understory: { y: 265, label: "UNDERSTORY", sub: "PRODUCT", color: "#ff8a5c" },
+    roots:      { y: 460, label: "ROOTS", sub: "INFRASTRUCTURE", color: "#c9a27a" },
   };
   const LAYER_ORDER = ["canopy", "understory", "roots"];
 
@@ -80,8 +80,8 @@
   const VIEWS = {
     eagle:      { x: 0, y: 0,   scale: 1,   layer: null },
     canopy:     { x: 0, y: 0,   scale: 2.0, layer: "canopy" },
-    understory: { x: 0, y: 130, scale: 2.5, layer: "understory" },
-    roots:      { x: 0, y: 260, scale: 3.1, layer: "roots" },
+    understory: { x: 0, y: 160, scale: 2.5, layer: "understory" },
+    roots:      { x: 0, y: 330, scale: 3.1, layer: "roots" },
     spawn:      { x: 0, y: 0,   scale: 1,   layer: null, nest: true },
   };
   let currentView = "eagle";
@@ -1258,6 +1258,10 @@
         if (selectedId === a.data.id) selectedId = null;
         retarget();
       }
+    } else if (a.data.status === "idle") {
+      a.alpha = Math.max(0, a.alpha - dt * 0.4);
+    } else if (a.data.status !== "sleeping") {
+      a.alpha = Math.min(1, a.alpha + dt * 0.8);
     }
   }
 
@@ -1377,7 +1381,7 @@
     list.sort((p, q) => p.y - q.y);
 
     for (const a of list) {
-      if (!agents.has(a.data.id) || a.data.status === "sleeping") continue;
+      if (!agents.has(a.data.id) || a.data.status === "sleeping" || a.alpha <= 0.01) continue;
       const kind = kindOf(a.data);
       const x = Math.round(a.x), y = Math.round(a.y);
       ctx.globalAlpha = Math.max(0, a.alpha) * (a.data.status === "sleeping" ? 0.65 : 1);

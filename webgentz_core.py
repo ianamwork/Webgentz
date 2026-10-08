@@ -442,6 +442,7 @@ class World:
             "answer": "",          # its last answer, once a task is done
             "task_started": None,
             "finished_at": None,
+            "last_prompt": "",
         }
 
     def apply(self, event):
@@ -479,6 +480,7 @@ class World:
         if name == "prompt":
             agent["prompts"] += 1
             agent.update(task_started=event["received"], finished_at=None, answer="")
+            agent["last_prompt"] = (event.get("prompt") or "")[:500]
             prompt = short_text(event.get("prompt"), 70)
             agent.update(status="working", location="townhall", activity="taking orders", detail=prompt, tool_running=False)
             return f"New orders: {prompt}" if prompt else "New orders"

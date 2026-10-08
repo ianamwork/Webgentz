@@ -21,10 +21,45 @@
     </div>
   </header>
 
+  <nav class="view-tabs" aria-label="View">
+    <button class="vtab active" data-view="eagle">EAGLE</button>
+    <button class="vtab" data-view="canopy">CANOPY</button>
+    <button class="vtab" data-view="understory">UNDERSTORY</button>
+    <button class="vtab" data-view="roots">ROOTS</button>
+    <button class="vtab" data-view="spawn">NEST</button>
+  </nav>
+
   <main class="layout">
-    <section class="world-wrap">
+    <section class="world-wrap" id="world-wrap">
       <canvas id="world" width="576" height="384" aria-label="Jungle tree with your agents on its layers"></canvas>
+      <div class="stop-key" role="group" aria-label="Village stops">
+        <span><i class="lookout"></i>Lookout</span>
+        <span><i class="workshop"></i>Workshop</span>
+        <span><i class="colony"></i>Colony</span>
+        <span><i class="plaza"></i>Tree plaza</span>
+        <span><i class="camp"></i>Campfire</span>
+        <span><i class="engine"></i>Engine room</span>
+        <span><i class="market"></i>Market</span>
+        <span><i class="homes"></i>Homes</span>
+      </div>
       <div class="textbox" id="ticker">Welcome to the jungle!</div>
+    </section>
+
+    <section class="spawn-wrap" id="spawn-panel" hidden>
+      <div class="spawn-box">
+        <h2 class="spawn-title">THE NEST</h2>
+        <p class="spawn-desc">Sleeping agents rest here. Wake one or start a fresh session from a project directory.</p>
+        <div id="sleeping-list"></div>
+        <div class="spawn-form">
+          <h3>START A NEW SESSION</h3>
+          <label class="spawn-label" for="spawn-cwd">Project directory</label>
+          <div class="spawn-row">
+            <input class="spawn-input" id="spawn-cwd" type="text" placeholder="/path/to/your/project" autocomplete="off">
+            <button class="spawn-btn" id="spawn-go">SPAWN</button>
+          </div>
+          <p class="spawn-msg" id="spawn-msg"></p>
+        </div>
+      </div>
     </section>
 
     <aside class="panel" id="panel">
@@ -43,9 +78,13 @@
         <div class="status-row">
           <div class="badge" id="a-status"></div>
           <button class="jump" id="a-open" hidden></button>
+          <button class="dismiss" id="a-close" hidden>Send away &#x2715;</button>
         </div>
         <div id="a-answer-box" hidden>
-          <h3>ANSWER</h3>
+          <div class="answer-head">
+            <h3>ANSWER</h3>
+            <button class="copy-btn" id="a-copy">Copy</button>
+          </div>
           <div class="answer" id="a-answer"></div>
         </div>
         <dl class="facts">
@@ -57,6 +96,7 @@
           <dt>Model</dt><dd id="a-model"></dd>
           <dt>Active for</dt><dd id="a-age"></dd>
           <dt>Orders</dt><dd id="a-prompts"></dd>
+          <dt>Last task</dt><dd id="a-prompt" class="task-text"></dd>
         </dl>
         <h3>TOKENS</h3>
         <div class="tokens">
