@@ -63,6 +63,34 @@ const S = {
 
 let world = null;
 
+// ===== Render throttling ==================================================
+let rafId = 0;
+function scheduleRender() {
+  if (rafId) return;
+  rafId = requestAnimationFrame(function() { rafId = 0; render(); });
+}
+
+// ===== Agent sync throttle ================================================
+// setAgents triggers scenery recompute; only push every 2s to stop season flashing
+let syncTimeout = 0, syncPending = false, syncLast = 0;
+function syncAgents() {
+  if (!world) return;
+  const now = Date.now();
+  if (now - syncLast > 2000) {
+    syncLast = now;
+    world.setAgents([...S.agents.values()].map(toEngineAgent));
+    return;
+  }
+  if (!syncPending) {
+    syncPending = true;
+    syncTimeout = setTimeout(function() {
+      syncPending = false;
+      syncLast = Date.now();
+      if (world) world.setAgents([...S.agents.values()].map(toEngineAgent));
+    }, 2000 - (now - syncLast));
+  }
+}
+
 // ===== Helpers ============================================================
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -174,46 +202,47 @@ function mountEngine() {
       S.hoverPos = pos;
       S.bankHover = place === 'bank';
       S.boardHover = place === 'board';
-      render();
+      // Only update the lightweight floating elements, not the whole page
+      renderHoverCard();
+      renderBankTip();
+      renderBoardTip();
     },
     onClick: function(agent) {
       if (agent) {
         S.selectedId = agent.id;
         S.hover = null;
+        renderHoverCard();
       } else {
         S.selectedId = null;
       }
-      render();
+      renderAgentSheet();
     },
     onBank: function() {
       S.bankOpen = !S.bankOpen;
       S.questsOpen = false;
-      renderQuestLog(); renderBank();
-      renderHUD();
       el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
+      renderQuestLog(); renderBank();
     },
     onBoard: function() {
       S.questsOpen = !S.questsOpen;
       S.bankOpen = false;
-      renderQuestLog(); renderBank();
-      renderHUD();
       el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
+      renderQuestLog(); renderBank();
     },
     onHour: function(hour, dark, animating) {
+      var prevDark = S.dark;
       S.hour = hour;
       S.dark = dark;
       S.animating = animating;
-      renderHUD();
-      renderTimePop();
-      renderTheme();
+      // Update clock text in-place — don't rebuild the whole HUD on every frame
+      var ct = document.getElementById('hud-clock');
+      if (ct) ct.textContent = clock(hour);
+      // Only flip theme when the day/night threshold actually crosses
+      if ((dark > 0.5) !== (prevDark > 0.5)) renderTheme();
+      if (S.timeOpen) renderTimePop();
     },
   });
   syncAgents();
-}
-
-function syncAgents() {
-  if (!world) return;
-  world.setAgents([...S.agents.values()].map(toEngineAgent));
 }
 
 // ===== Render helpers =====================================================
@@ -260,7 +289,7 @@ function renderHUD() {
       '</div>' +
       '<button class="btn-bp" id="btn-clock" style="' + hudStyle + ';gap:6px;padding:0 12px" onclick="toggleTimePop()">' +
         SVG.clock +
-        '<span style="font:600 13px/1 var(--font-heading);letter-spacing:0.04em">' + clock(S.hour) + '</span>' +
+        '<span id="hud-clock" style="font:600 13px/1 var(--font-heading);letter-spacing:0.04em">' + clock(S.hour) + '</span>' +
       '</button>' +
       '<button class="btn-bp" id="btn-bank" style="' + hudStyle + ';gap:6px;padding:0 12px" onclick="openBank()">' +
         SVG.coin +
@@ -758,7 +787,7 @@ function receive(msg) {
     if (msg.agent) upsert(msg.agent);
   }
   syncAgents();
-  render();
+  scheduleRender();
 }
 
 function loadHistory() {
@@ -837,20 +866,19 @@ const mq = window.matchMedia('(prefers-color-scheme: dark)');
 function applyOsDark(dark) { if (world) world.animateTo(dark ? 22 : 12, 4); }
 mq.addEventListener('change', function(e){ if (S.auto) applyOsDark(e.matches); });
 
-// ===== Idle / stuck watchdog ==============================================
+// ===== Sleeping watchdog ==================================================
+// Only promote idle → sleeping (conservative; never override working/stuck)
 setInterval(function() {
   let changed = false;
   const now = Date.now() / 1000;
   for (const [id, a] of S.agents) {
-    const workSecs = a.started ? now - a.started : 0;
-    const idleSecs = a.since  ? now - a.since  : 0;
-    let ns = a.status;
-    if (a.status === 'working' && workSecs > 600) ns = 'stuck';
-    if (a.status === 'idle'    && idleSecs > 600) ns = 'sleeping';
-    if (ns !== a.status) { S.agents.set(id, Object.assign({}, a, {status: ns})); changed = true; }
+    if (a.status === 'idle' && a.since && (now - a.since) > 900) {
+      S.agents.set(id, Object.assign({}, a, { status: 'sleeping' }));
+      changed = true;
+    }
   }
-  if (changed) { syncAgents(); render(); }
-}, 5000);
+  if (changed) { syncAgents(); scheduleRender(); }
+}, 30000);
 
 // ===== Close modals on backdrop ==========================================
 el('modal-back').addEventListener('click', closeModals);
