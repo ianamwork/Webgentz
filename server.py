@@ -78,6 +78,11 @@ class Store:
                 body TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS events_received ON events (received);
             CREATE INDEX IF NOT EXISTS events_session ON events (session_id, id);
+            CREATE TABLE IF NOT EXISTS notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                received REAL NOT NULL,
+                author TEXT NOT NULL DEFAULT 'you',
+                text TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS daily (
                 day TEXT NOT NULL,
                 session_id TEXT NOT NULL,
@@ -142,6 +147,83 @@ class Store:
             cur = self.db.execute("SELECT * FROM daily WHERE day >= ? ORDER BY day, session_id", (first,))
             cols = [c[0] for c in cur.description]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def add_note(self, text, author="you"):
+        now = time.time()
+        with self.lock:
+            self.db.execute(
+                "INSERT INTO notes (received, author, text) VALUES (?, ?, ?)",
+                (now, author, text)
+            )
+            self.db.commit()
+        return {"received": now, "author": author, "text": text}
+
+    _LEDGER_EVENTS = frozenset({"start", "prompt", "needs_you", "done", "end"})
+    _LEDGER_TOOLS = frozenset({"Edit", "MultiEdit", "Write", "Bash", "Task", "Agent",
+                                "WebSearch", "WebFetch", "NotebookEdit", "TodoWrite"})
+
+    def ledger(self, limit=120, agent_names=None):
+        agent_names = agent_names or {}
+        since = time.time() - 86400
+        with self.lock:
+            event_rows = self.db.execute(
+                "SELECT received, session_id, body FROM events WHERE received >= ? ORDER BY received",
+                (since,)
+            ).fetchall()
+            note_rows = self.db.execute(
+                "SELECT received, author, text FROM notes WHERE received >= ? ORDER BY received",
+                (since,)
+            ).fetchall()
+
+        entries = []
+        for received, session_id, body in event_rows:
+            try:
+                evt = json.loads(body)
+            except Exception:
+                continue
+            event_type = evt.get("event", "")
+            if event_type not in self._LEDGER_EVENTS:
+                if event_type == "tool_start":
+                    if evt.get("tool", "") not in self._LEDGER_TOOLS:
+                        continue
+                else:
+                    continue
+
+            if event_type == "prompt":
+                text = (evt.get("prompt") or "new orders")[:200]
+            elif event_type == "tool_start":
+                text = evt.get("detail") or evt.get("tool", "")
+            elif event_type == "done":
+                text = (evt.get("answer") or "finished")[:200]
+            elif event_type == "needs_you":
+                text = evt.get("message") or evt.get("detail") or "needs your attention"
+            elif event_type == "start":
+                text = "arrived"
+            elif event_type == "end":
+                text = "left"
+            else:
+                text = evt.get("detail") or event_type
+
+            entries.append({
+                "type": "event",
+                "received": received,
+                "session_id": session_id,
+                "agent_name": agent_names.get(session_id) or evt.get("name") or session_id[:8],
+                "agent_type": evt.get("agent_type") or "claude-code",
+                "event": event_type,
+                "text": text,
+            })
+
+        for received, author, text in note_rows:
+            entries.append({
+                "type": "note",
+                "received": received,
+                "author": author,
+                "text": text,
+            })
+
+        entries.sort(key=lambda x: x["received"])
+        return entries[-limit:]
 
     def timeline(self, session_id=None, limit=200):
         with self.lock:
@@ -542,7 +624,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/event", "/api/open", "/api/close", "/api/spawn"):
+        if path not in ("/event", "/api/open", "/api/close", "/api/spawn", "/api/note"):
             return self._json(404, {"error": "not found"})
         if self._from_other_website():
             return self._json(403, {"error": "requests from other websites are not allowed"})
@@ -565,6 +647,14 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict) or not isinstance(body.get("cwd"), str):
                 return self._json(400, {"error": "send {\"cwd\": \"/path/to/project\"}"})
             return self._json(*spawn_session(body["cwd"]))
+        if path == "/api/note":
+            text = (body.get("text") or "").strip() if isinstance(body, dict) else ""
+            if not text:
+                return self._json(400, {"error": "send {\"text\": \"your note\"}"})
+            author = (body.get("author") or "you")[:50]
+            note = store.add_note(text[:500], author)
+            broadcaster.send({"type": "note", "note": note})
+            return self._json(200, {"ok": True, "note": note})
         try:
             ingest(body)
         except EventError as exc:
@@ -589,6 +679,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {"vault": vault, "completions": memory.recent(n, project)})
         if url.path == "/api/memory/context":
             return self._json(200, {"vault": memory.vault or "", "pages": memory.context_pages()})
+        if url.path == "/api/ledger":
+            limit = max(1, min(500, int((query.get("limit") or ["120"])[0])))
+            names = {a["id"]: a["name"] for a in world.snapshot()}
+            return self._json(200, {"entries": store.ledger(limit, names)})
         if url.path == "/api/timeline":
             session = (query.get("session") or [None])[0]
             limit = max(1, min(1000, int((query.get("limit") or ["200"])[0])))

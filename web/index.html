@@ -3,118 +3,44 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Webgentz Jungle</title>
+  <title>Webgentz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="hud">
-    <div class="title">WEBGENTZ</div>
-    <div class="stats">
-      <span id="hud-agents">0 agents</span>
-      <span id="hud-tokens">0 tokens</span>
-      <span id="hud-cost">$0 spent</span>
-      <span id="hud-health">tree thriving</span>
-      <a href="history.html" class="navlink" id="hud-history">HISTORY</a>
-      <span id="hud-mode" class="mode"></span>
-    </div>
-  </header>
+  <div id="stage" data-theme="day">
+    <canvas id="world"></canvas>
 
-  <nav class="view-tabs" aria-label="View">
-    <button class="vtab active" data-view="eagle">EAGLE</button>
-    <button class="vtab" data-view="canopy">CANOPY</button>
-    <button class="vtab" data-view="understory">UNDERSTORY</button>
-    <button class="vtab" data-view="roots">ROOTS</button>
-    <button class="vtab" data-view="spawn">NEST</button>
-  </nav>
+    <!-- layer labels -->
+    <div class="layer-lbl" id="ll-canopy"  style="top:27%;left:16px;pointer-events:none;"></div>
+    <div class="layer-lbl" id="ll-understory" style="top:52%;left:16px;pointer-events:none;"></div>
+    <div class="layer-lbl" id="ll-roots" style="top:72%;left:16px;pointer-events:none;"></div>
 
-  <main class="layout">
-    <section class="world-wrap" id="world-wrap">
-      <canvas id="world" width="576" height="384" aria-label="Jungle tree with your agents on its layers"></canvas>
-      <div class="stop-key" role="group" aria-label="Village stops">
-        <span><i class="lookout"></i>Lookout</span>
-        <span><i class="workshop"></i>Workshop</span>
-        <span><i class="colony"></i>Colony</span>
-        <span><i class="plaza"></i>Tree plaza</span>
-        <span><i class="camp"></i>Campfire</span>
-        <span><i class="engine"></i>Engine room</span>
-        <span><i class="market"></i>Market</span>
-        <span><i class="homes"></i>Homes</span>
-      </div>
-      <div class="textbox" id="ticker">Welcome to the jungle!</div>
-    </section>
+    <!-- HUD top bar -->
+    <header id="hud"></header>
 
-    <section class="spawn-wrap" id="spawn-panel" hidden>
-      <div class="spawn-box">
-        <h2 class="spawn-title">THE NEST</h2>
-        <p class="spawn-desc">Sleeping agents rest here. Wake one or start a fresh session from a project directory.</p>
-        <div id="sleeping-list"></div>
-        <div class="spawn-form">
-          <h3>START A NEW SESSION</h3>
-          <label class="spawn-label" for="spawn-cwd">Project directory</label>
-          <div class="spawn-row">
-            <input class="spawn-input" id="spawn-cwd" type="text" placeholder="/path/to/your/project" autocomplete="off">
-            <button class="spawn-btn" id="spawn-go">SPAWN</button>
-          </div>
-          <p class="spawn-msg" id="spawn-msg"></p>
-        </div>
-      </div>
-    </section>
+    <!-- time-of-day popover -->
+    <div id="time-pop" hidden></div>
 
-    <aside class="panel" id="panel">
-      <div id="panel-roster">
-        <h2>YOUR AGENTS</h2>
-        <ul id="roster"></ul>
-        <p class="empty" id="roster-empty">
-          No agents yet.<br><br>
-          Start a Claude Code session after running <code>install_hooks.py</code>,
-          or open <a href="?demo">demo mode</a>.
-        </p>
-      </div>
-      <div id="panel-agent" hidden>
-        <button class="back" id="back">&#9664; ALL AGENTS</button>
-        <h2 id="a-name"></h2>
-        <div class="status-row">
-          <div class="badge" id="a-status"></div>
-          <button class="jump" id="a-open" hidden></button>
-          <button class="dismiss" id="a-close" hidden>Send away &#x2715;</button>
-        </div>
-        <div id="a-answer-box" hidden>
-          <div class="answer-head">
-            <h3>ANSWER</h3>
-            <button class="copy-btn" id="a-copy">Copy</button>
-          </div>
-          <div class="answer" id="a-answer"></div>
-        </div>
-        <dl class="facts">
-          <dt>Kind</dt><dd id="a-kind"></dd>
-          <dt>Where</dt><dd id="a-layer"></dd>
-          <dt>Doing</dt><dd id="a-activity"></dd>
-          <dt>Detail</dt><dd id="a-detail"></dd>
-          <dt>Project</dt><dd id="a-project"></dd>
-          <dt>Model</dt><dd id="a-model"></dd>
-          <dt>Active for</dt><dd id="a-age"></dd>
-          <dt>Orders</dt><dd id="a-prompts"></dd>
-          <dt>Last task</dt><dd id="a-prompt" class="task-text"></dd>
-        </dl>
-        <h3>TOKENS</h3>
-        <div class="tokens">
-          <div><span>Input</span><b id="t-input"></b></div>
-          <div><span>Output</span><b id="t-output"></b></div>
-          <div><span>Cache read</span><b id="t-cache_read"></b></div>
-          <div><span>Cache write</span><b id="t-cache_write"></b></div>
-          <div class="total"><span>Total</span><b id="t-total"></b></div>
-          <div><span>Cost</span><b id="t-cost"></b></div>
-        </div>
-        <h3>TOOLS USED</h3>
-        <ul class="bars" id="a-tools"></ul>
-        <h3>RECENT</h3>
-        <ol class="log" id="a-log"></ol>
-      </div>
-    </aside>
-  </main>
+    <!-- hover cards -->
+    <div id="hover-card" hidden></div>
+    <div id="bank-tip"  hidden></div>
+    <div id="board-tip" hidden></div>
 
+    <!-- agent detail sheet -->
+    <aside id="agent-sheet" hidden></aside>
+
+    <!-- ledger (tab when closed, drawer when open) -->
+    <div id="ledger-wrap"></div>
+
+    <!-- modals -->
+    <div id="modal-back" hidden></div>
+    <div id="quest-panel" hidden></div>
+    <div id="bank-panel"  hidden></div>
+  </div>
+
+  <script src="jungle-engine.js"></script>
   <script src="demo.js"></script>
   <script src="world.js"></script>
 </body>
