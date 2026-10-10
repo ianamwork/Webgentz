@@ -10,7 +10,7 @@ const SVG = {
   scroll: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
   chevup: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>',
   chevdn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>',
-  x:      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  x:      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   check:  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
   find:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
 };
@@ -899,6 +899,26 @@ setInterval(function() {
 
 // ===== Close modals on backdrop ==========================================
 el('modal-back').addEventListener('click', closeModals);
+
+// ===== Escape key ========================================================
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Escape') return;
+  if (S.selectedId) { closeSheet(); return; }
+  if (S.questsOpen || S.bankOpen || S.timeOpen) { closeModals(); return; }
+  if (S.ledgerOpen) closeLedger();
+});
+
+// ===== Click outside agent sheet =========================================
+document.addEventListener('click', function(e) {
+  if (!S.selectedId) return;
+  const sheet = el('agent-sheet');
+  if (!sheet || sheet.hidden) return;
+  const canvas = document.getElementById('world');
+  // Canvas clicks are handled by the engine (onClick(null) closes sheet)
+  if (canvas && canvas.contains(e.target)) return;
+  if (sheet.contains(e.target)) return;
+  closeSheet();
+});
 
 // ===== Init ===============================================================
 function init() {
