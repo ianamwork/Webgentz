@@ -216,6 +216,7 @@ function mountEngine() {
         S.selectedId = agent.id;
         S.hover = null;
         renderHoverCard();
+        fetch('/api/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: agent.id }) }).catch(function(){});
       } else {
         S.selectedId = null;
       }
@@ -477,12 +478,14 @@ function renderAgentSheet() {
   sheet.innerHTML =
     BP +
     '<div class="sheet-head">' +
-      av(a, 48) +
-      '<div style="flex:1;min-width:0">' +
-        '<div class="sheet-name">' + esc(a.name) + '</div>' +
-        '<div class="sheet-sub">' + esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + ' · ' + esc(LAYER_LABEL[a.layer] || '') + '</div>' +
-        '<span class="status-tag ' + statusStyle(a.status) + '" style="margin-top:6px;display:inline-block">' + esc(STATUS_LABEL[a.status] || a.status) + '</span>' +
-      '</div>' +
+      '<button style="all:unset;cursor:pointer;display:contents" onclick="openAgentApp(\'' + esc(a.id) + '\')" title="Switch to this agent\'s app">' +
+        av(a, 48) +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="sheet-name">' + esc(a.name) + '</div>' +
+          '<div class="sheet-sub">' + esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + ' · ' + esc(LAYER_LABEL[a.layer] || '') + '</div>' +
+          '<span class="status-tag ' + statusStyle(a.status) + '" style="margin-top:6px;display:inline-block">' + esc(STATUS_LABEL[a.status] || a.status) + '</span>' +
+        '</div>' +
+      '</button>' +
       '<button class="sheet-close-btn" onclick="closeSheet()">' + SVG.x + '</button>' +
     '</div>' +
     '<div class="sheet-body">' +
@@ -830,6 +833,10 @@ function connect() {
 }
 
 // ===== Actions (called from inline onclick) ================================
+function openAgentApp(id) {
+  fetch('/api/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) }).catch(function(){});
+}
+
 function jumpTo(id) {
   S.selectedId = id;
   syncAgents();
