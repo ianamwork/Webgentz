@@ -225,6 +225,8 @@ button:active { filter: brightness(0.92); }
   z-index: 20;
 }
 #time-pop input[type=range] { width: 100%; accent-color: var(--color-accent); cursor: pointer; }
+.time-close { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--p-line); background: transparent; color: var(--p-fg); }
+.time-close:hover { background: var(--p-soft); }
 .preset-grid {
   display: grid; grid-template-columns: repeat(4, 1fr);
   border: 1px solid var(--p-line);
@@ -287,14 +289,40 @@ button:active { filter: brightness(0.92); }
 }
 .sheet-name { font: 600 22px/1.1 var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-sub  { font-size: 13px; color: var(--p-mute); }
-.sheet-close-btn {
+.sheet-close-btn, .sheet-icon-btn {
   width: 36px; height: 36px;
   display: grid; place-items: center;
   background: none; border: 1px solid var(--p-line); color: var(--p-fg); flex: none;
   transition: background 0.1s;
 }
-.sheet-close-btn:hover { background: var(--p-soft); }
-.sheet-close-btn:active { background: var(--p-line); }
+.sheet-close-btn:hover, .sheet-icon-btn:hover { background: var(--p-soft); }
+.sheet-close-btn:active, .sheet-icon-btn:active { background: var(--p-line); }
+.sheet-icon-btn.active { background: var(--p-soft); border-color: var(--p-fg); }
+
+/* ===== Color picker ======================================================= */
+.color-picker-row {
+  display: flex; gap: 7px; align-items: center; flex-wrap: wrap;
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid var(--p-line);
+  background: var(--p-soft);
+}
+.color-swatch {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  outline: none;
+}
+.color-swatch:hover { transform: scale(1.18); }
+.color-swatch.active {
+  box-shadow: 0 0 0 2px var(--p-bg), 0 0 0 4px var(--p-fg);
+  transform: scale(1.1);
+}
+.color-swatch.reset-swatch {
+  background: conic-gradient(#fff 0deg 180deg, #222 180deg 360deg) !important;
+  border-color: var(--p-line);
+}
 .sheet-body {
   flex: 1; overflow-y: auto; padding: 16px;
   display: flex; flex-direction: column; gap: 16px;

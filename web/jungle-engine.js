@@ -509,22 +509,23 @@
     snake: { animal: "snake", color: "#7a9a4a", label: "Snake agent" },
   };
   const OUTLINE = "#10170f", SW = 40, SH = 34, FX = 20, FY = 30, sprites = new Map();
-  function sprite(type, step) {
-    const k = KINDS[type] || KINDS.frontend, key = `${type}|${step % 2}`;
+  function sprite(type, step, colorOverride) {
+    const k = KINDS[type] || KINDS.frontend, color = colorOverride || k.color, key = `${type}|${step % 2}|${colorOverride || ''}`;
     if (sprites.has(key)) return sprites.get(key);
     const make = () => { const c = document.createElement("canvas"); c.width = SW * RS; c.height = SH * RS; c.getContext("2d").setTransform(RS, 0, 0, RS, 0, 0); return c; };
-    const raw = make(), r = raw.getContext("2d"); r.translate(FX, FY); ANIMALS[k.animal](r, k.color, step % 2);
+    const raw = make(), r = raw.getContext("2d"); r.translate(FX, FY); ANIMALS[k.animal](r, color, step % 2);
     const sil = make(), sc = sil.getContext("2d"); sc.setTransform(1, 0, 0, 1, 0, 0); sc.drawImage(raw, 0, 0); sc.globalCompositeOperation = "source-in"; sc.fillStyle = OUTLINE; sc.fillRect(0, 0, SW * RS, SH * RS);
     const out = make(), o = out.getContext("2d"); o.setTransform(1, 0, 0, 1, 0, 0);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) o.drawImage(sil, dx * RS, dy * RS);
     o.drawImage(raw, 0, 0); sprites.set(key, out); return out;
   }
   const avatarCache = {};
-  function avatar(type) {
-    if (avatarCache[type]) return avatarCache[type];
-    const s = sprite(type, 0), c = document.createElement("canvas"); c.width = 48; c.height = 48;
+  function avatar(type, colorOverride) {
+    const key = colorOverride ? type + '|' + colorOverride : type;
+    if (avatarCache[key]) return avatarCache[key];
+    const s = sprite(type, 0, colorOverride), c = document.createElement("canvas"); c.width = 48; c.height = 48;
     const x = c.getContext("2d"); x.imageSmoothingEnabled = false; x.drawImage(s, 8 * RS, 8 * RS, 24 * RS, 24 * RS, 0, 0, 48, 48);
-    return (avatarCache[type] = c.toDataURL());
+    return (avatarCache[key] = c.toDataURL());
   }
 
   // ---------------- markers above heads
@@ -741,7 +742,7 @@
         g.addColorStop(0, "rgba(255,226,120," + 0.75 * glow + ")"); g.addColorStop(1, "rgba(255,226,120,0)"); ctx.fillStyle = g; ctx.fillRect(gx - R, gy - R, R * 2, R * 2);
       }
       if (!a.air && !a.vert) { ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.beginPath(); ctx.ellipse(a.x + ox, a.y + 1, Math.max(4, 9 + oy * 0.25), 2.2, 0, 0, 6.28); ctx.fill(); }
-      const s = sprite(d.agent_type, step);
+      const s = sprite(d.agent_type, step, d.color);
       ctx.save(); ctx.translate(Math.round(a.x + ox), Math.round(a.y + oy));
       if (a.vert) { ctx.translate(0, -6); ctx.rotate(a.vert < 0 ? -Math.PI / 2 : Math.PI / 2); ctx.translate(0, 6); }
       else if (a.face < 0) ctx.scale(-1, 1);

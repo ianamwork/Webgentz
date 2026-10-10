@@ -5,14 +5,15 @@
 const BP = '<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>';
 
 const SVG = {
-  clock:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-  coin:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="10" x2="16" y2="10"/></svg>',
-  scroll: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
-  chevup: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>',
-  chevdn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>',
-  x:      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-  check:  '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
-  find:   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  clock:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  coin:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="10" x2="16" y2="10"/></svg>',
+  scroll:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+  chevup:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>',
+  chevdn:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>',
+  x:       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  check:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+  find:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  palette: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/><circle cx="8" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="9" r="1" fill="currentColor" stroke="none"/></svg>',
 };
 
 const KIND_LABEL = {
@@ -37,6 +38,8 @@ const TOOL_MAP = {
 };
 
 // ===== State ==============================================================
+const PALETTE = ['#a855f7','#d97757','#3b82f6','#22c55e','#ec4899','#ef4444','#14b8a6','#f59e0b','#84cc16','#64748b'];
+
 const S = {
   agents: new Map(),
   messages: [],
@@ -59,6 +62,8 @@ const S = {
   measure: 'cost',
   bankHistory: [],
   sectOpen: {},
+  customs: {},
+  customPanel: null,
 };
 
 let world = null;
@@ -152,7 +157,8 @@ function agentSummary(a) {
 function av(a, size) {
   size = size || 28;
   if (!window.JungleEngine) return '<div style="width:' + size + 'px;height:' + size + 'px;background:var(--p-soft)"></div>';
-  const url = JungleEngine.avatar(a.agent_type || 'backend', size);
+  const custom = a && a.id && S.customs[a.id];
+  const url = JungleEngine.avatar(a.agent_type || 'backend', custom && custom.color);
   return '<img src="' + url + '" width="' + size + '" height="' + size + '" style="image-rendering:pixelated">';
 }
 
@@ -181,6 +187,7 @@ function toEngineAgent(a) {
   }
   if (a.status === 'done') { loc = 'townhall'; act = 'checking off'; }
   const recent = (a.recent || []).map(r => ({ t: r.time || r.t || 0, text: r.text || '' }));
+  const custom = S.customs[a.id];
   return {
     id: a.id, name: a.name, agent_type: a.agent_type,
     layer: a.layer || 'understory',
@@ -190,6 +197,7 @@ function toEngineAgent(a) {
     detail: a.detail, started: a.started, since: a.since,
     done: a.done, answer: a.answer,
     tokens: a.tokens || {}, cost_usd: a.cost_usd, tool_counts: tools, recent,
+    color: custom && custom.color || null,
   };
 }
 
@@ -199,7 +207,7 @@ function mountEngine() {
   if (!canvas || !window.JungleEngine) return;
   if (world) { world.destroy(); world = null; }
   world = JungleEngine.mount(canvas, {
-    hour: S.hour,
+    hour: S.auto ? autoHour() : S.hour,
     selectedId: function() { return S.selectedId; },
     onHover: function(agent, pos, place) {
       S.hover = agent;
@@ -223,12 +231,14 @@ function mountEngine() {
       renderAgentSheet();
     },
     onBank: function() {
+      closeHudPopups();
       S.bankOpen = !S.bankOpen;
       S.questsOpen = false;
       el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
       renderQuestLog(); renderBank();
     },
     onBoard: function() {
+      closeHudPopups();
       S.questsOpen = !S.questsOpen;
       S.bankOpen = false;
       el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
@@ -321,6 +331,7 @@ function renderTimePop() {
     '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font:600 13px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">TIME OF DAY</span>' +
       '<span style="font:600 22px/1 var(--font-heading)">' + clock(S.hour) + '</span>' +
+      '<button class="time-close" aria-label="Close time controls" onclick="closeTimePop()">' + SVG.x + '</button>' +
     '</div>' +
     '<input type="range" min="0" max="24" step="0.1" value="' + S.hour + '" oninput="onHourSlide(this.value)">' +
     '<div class="preset-grid">' +
@@ -336,8 +347,8 @@ function renderTimePop() {
     '<button class="auto-row" onclick="toggleAuto()">' +
       '<span class="auto-check ' + (S.auto ? 'on' : '') + '">' + (S.auto ? '✓' : '') + '</span>' +
       '<div>' +
-        '<div style="font:600 14px/1.2 var(--font-body)">Follow OS dark mode</div>' +
-        '<div style="font-size:12px;color:var(--p-mute);margin-top:3px">Switches automatically with your system theme</div>' +
+        '<div style="font:600 14px/1.2 var(--font-body)">Follow real clock</div>' +
+        '<div style="font-size:12px;color:var(--p-mute);margin-top:3px">Keeps the jungle in sync with your local time</div>' +
       '</div>' +
     '</button>';
 }
@@ -475,6 +486,14 @@ function renderAgentSheet() {
     ((a.tokens || {}).cache_read  ? '<div class="acc-kv"><span>Cache read</span><span>' + fmtTok(a.tokens.cache_read) + '</span></div>' : '') +
     ((a.tokens || {}).cache_write ? '<div class="acc-kv"><span>Cache write</span><span>' + fmtTok(a.tokens.cache_write) + '</span></div>' : '');
 
+  const customPanelOpen = S.customPanel === a.id;
+  const currentColor = S.customs[a.id] && S.customs[a.id].color;
+  const swatches = PALETTE.map(function(c) {
+    const isActive = c === currentColor;
+    return '<button class="color-swatch' + (isActive ? ' active' : '') + '" style="background:' + c + '" onclick="customizeAgent(\'' + esc(a.id) + '\',\'' + c + '\')" title="' + c + '"></button>';
+  }).join('');
+  const resetSwatch = '<button class="color-swatch reset-swatch' + (!currentColor ? ' active' : '') + '" onclick="customizeAgent(\'' + esc(a.id) + '\',null)" title="Default color"></button>';
+
   sheet.innerHTML =
     BP +
     '<div class="sheet-head">' +
@@ -486,8 +505,10 @@ function renderAgentSheet() {
           '<span class="status-tag ' + statusStyle(a.status) + '" style="margin-top:6px;display:inline-block">' + esc(STATUS_LABEL[a.status] || a.status) + '</span>' +
         '</div>' +
       '</button>' +
+      '<button class="sheet-icon-btn' + (customPanelOpen ? ' active' : '') + '" onclick="toggleCustomPanel(\'' + esc(a.id) + '\')" title="Customize sprite">' + SVG.palette + '</button>' +
       '<button class="sheet-close-btn" onclick="closeSheet()">' + SVG.x + '</button>' +
     '</div>' +
+    (customPanelOpen ? '<div class="color-picker-row">' + resetSwatch + swatches + '</div>' : '') +
     '<div class="sheet-body">' +
       (a.detail ? '<div style="font-size:14px">' + esc(a.detail) + '</div>' : '') +
       needsBox +
@@ -862,26 +883,89 @@ function resolveAgent(id, ok) {
   }
 }
 
-function closeSheet() { S.selectedId = null; render(); }
-function openLedger()  { S.ledgerOpen = true; render(); }
+function closeSheet() { S.selectedId = null; S.customPanel = null; render(); }
+function toggleCustomPanel(id) { S.customPanel = S.customPanel === id ? null : id; renderAgentSheet(); }
+function closeHudPopups() { S.ledgerOpen = false; S.timeOpen = false; }
+function openLedger()  { closeHudPopups(); S.ledgerOpen = true; render(); }
 function closeLedger() { S.ledgerOpen = false; render(); }
 function setLedgerTab(t){ S.ledgerTab = t; render(); }
 function setChannel(id) { S.ledgerChannel = id; render(); }
-function openQuests()  { S.questsOpen = true; S.bankOpen = false; el('modal-back').hidden = false; render(); }
-function openBank()    { S.bankOpen = true; S.questsOpen = false; el('modal-back').hidden = false; render(); }
+function openQuests()  { closeHudPopups(); S.questsOpen = true; S.bankOpen = false; el('modal-back').hidden = false; render(); }
+function openBank()    { closeHudPopups(); S.bankOpen = true; S.questsOpen = false; el('modal-back').hidden = false; render(); }
 function closeModals() { S.questsOpen = false; S.bankOpen = false; el('modal-back').hidden = true; S.timeOpen = false; render(); }
-function toggleTimePop(){ S.timeOpen = !S.timeOpen; renderTimePop(); }
+function toggleTimePop(){
+  const opening = !S.timeOpen;
+  closeHudPopups();
+  S.timeOpen = opening;
+  renderLedger();
+  renderTimePop();
+}
+function closeTimePop(){ S.timeOpen = false; renderTimePop(); }
 function onHourSlide(v){ S.auto = false; if (world) world.setHour(parseFloat(v)); }
 function setPreset(h)  { S.auto = false; if (world) world.setHour(h); }
 function animatePreset(from, to){ S.auto = false; if (world) world.animateTo(to, 4, from, true); }
-function toggleAuto()  { S.auto = !S.auto; if (S.auto) applyOsDark(mq.matches); renderTimePop(); }
+function toggleAuto()  { S.auto = !S.auto; if (S.auto) applyRealTime(true); renderTimePop(); }
 function toggleSect(k) { S.sectOpen[k] = !S.sectOpen[k]; renderAgentSheet(); }
 function setMeasure(m) { S.measure = m; renderBank(); }
 
-// ===== OS dark mode =======================================================
+// ===== Cursor tracking + hover stale check ================================
+let _cx = -1, _cy = -1;
+(function() {
+  const canvas = document.getElementById('world');
+  if (!canvas) return;
+  function clearCanvasHover() {
+    if (!S.hover && !S.bankHover && !S.boardHover) return;
+    S.hover = null; S.hoverPos = null; S.bankHover = false; S.boardHover = false;
+    renderHoverCard(); renderBankTip(); renderBoardTip();
+  }
+  canvas.addEventListener('mousemove', function(e) {
+    const r = canvas.getBoundingClientRect();
+    _cx = (e.clientX - r.left) / r.width;
+    _cy = (e.clientY - r.top) / r.height;
+  });
+  canvas.addEventListener('mouseleave', function() { _cx = -1; _cy = -1; clearCanvasHover(); });
+  canvas.addEventListener('pointerleave', clearCanvasHover);
+  document.addEventListener('pointermove', function(e) {
+    if (!canvas.contains(e.target)) clearCanvasHover();
+  }, true);
+})();
+(function checkStaleHover() {
+  if (S.hover && world && _cx >= 0) {
+    const pos = world.positions()[S.hover.id];
+    if (!pos) { S.hover = null; S.hoverPos = null; renderHoverCard(); }
+    else {
+      const dx = (pos.x - _cx) * JungleEngine.W;
+      const dy = (pos.y - _cy) * JungleEngine.H;
+      if (Math.hypot(dx, dy) > 22) { S.hover = null; S.hoverPos = null; renderHoverCard(); }
+    }
+  }
+  requestAnimationFrame(checkStaleHover);
+})();
+
+// ===== Sprite customization ===============================================
+function customizeAgent(id, color) {
+  if (color) {
+    S.customs[id] = Object.assign({}, S.customs[id] || {}, { color });
+  } else {
+    if (S.customs[id]) delete S.customs[id].color;
+    if (S.customs[id] && !Object.keys(S.customs[id]).length) delete S.customs[id];
+  }
+  try { localStorage.setItem('wg-customs', JSON.stringify(S.customs)); } catch(e) {}
+  syncAgents();
+  renderAgentSheet();
+}
+
+// ===== Real-time clock ====================================================
+function autoHour() { const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
+function applyRealTime(animate) {
+  if (!world) return;
+  if (animate) world.animateTo(autoHour(), 2);
+  else world.setHour(autoHour());
+}
+// Advance time every minute when in auto mode
+setInterval(function() { if (S.auto && world && !S.animating) world.animateTo(autoHour(), 2); }, 60000);
+
 const mq = window.matchMedia('(prefers-color-scheme: dark)');
-function applyOsDark(dark) { if (world) world.animateTo(dark ? 22 : 12, 4); }
-mq.addEventListener('change', function(e){ if (S.auto) applyOsDark(e.matches); });
 
 // ===== Sleeping watchdog ==================================================
 // Only promote idle → sleeping (conservative; never override working/stuck)
@@ -900,6 +984,24 @@ setInterval(function() {
 // ===== Close modals on backdrop ==========================================
 el('modal-back').addEventListener('click', closeModals);
 
+// Dismiss transient HUD panels as soon as the pointer goes elsewhere. Use
+// capture-phase pointerdown so frequent live updates cannot detach the target
+// before its click event is delivered.
+document.addEventListener('pointerdown', function(e) {
+  const target = e.target;
+  const timePop = el('time-pop');
+  const clockButton = el('btn-clock');
+  const ledger = el('ledger-wrap');
+
+  if (S.timeOpen && !timePop.contains(target) && !clockButton.contains(target)) {
+    closeTimePop();
+  }
+  if (S.ledgerOpen && !ledger.contains(target)) {
+    S.ledgerOpen = false;
+    renderLedger();
+  }
+}, true);
+
 // ===== Escape key ========================================================
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
@@ -916,14 +1018,17 @@ document.addEventListener('click', function(e) {
   const canvas = document.getElementById('world');
   // Canvas clicks are handled by the engine (onClick(null) closes sheet)
   if (canvas && canvas.contains(e.target)) return;
-  if (sheet.contains(e.target)) return;
+  // Use composedPath so re-renders during the event don't orphan e.target
+  const path = e.composedPath ? e.composedPath() : [];
+  if (sheet.contains(e.target) || path.indexOf(sheet) !== -1) return;
   closeSheet();
 });
 
 // ===== Init ===============================================================
 function init() {
+  try { S.customs = JSON.parse(localStorage.getItem('wg-customs') || '{}'); } catch(e) {}
   mountEngine();
-  if (world) world.setHour(mq.matches ? 22 : 12);
+  if (world) { if (S.auto) applyRealTime(false); else world.setHour(mq.matches ? 22 : 12); }
   connect();
   loadHistory();
   render();
