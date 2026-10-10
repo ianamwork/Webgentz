@@ -78,7 +78,7 @@ function syncAgents() {
   const now = Date.now();
   if (now - syncLast > 2000) {
     syncLast = now;
-    world.setAgents([...S.agents.values()].map(toEngineAgent));
+    world.setAgents(activeAgents().map(toEngineAgent));
     return;
   }
   if (!syncPending) {
@@ -86,7 +86,7 @@ function syncAgents() {
     syncTimeout = setTimeout(function() {
       syncPending = false;
       syncLast = Date.now();
-      if (world) world.setAgents([...S.agents.values()].map(toEngineAgent));
+      if (world) world.setAgents(activeAgents().map(toEngineAgent));
     }, 2000 - (now - syncLast));
   }
 }
@@ -161,8 +161,12 @@ function openLabel(a) {
   return '';
 }
 
+function activeAgents() {
+  return [...S.agents.values()].filter(a => a.status !== 'gone' && a.status !== 'sleeping');
+}
+
 function sortedAgents() {
-  return [...S.agents.values()].sort((a, b) =>
+  return activeAgents().sort((a, b) =>
     (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99)
   );
 }
@@ -250,7 +254,7 @@ function el(id) { return document.getElementById(id); }
 
 function renderLayerLabels() {
   const counts = { canopy: 0, understory: 0, roots: 0 };
-  for (const a of S.agents.values()) {
+  for (const a of activeAgents()) {
     const l = a.layer || 'understory';
     if (l in counts) counts[l]++;
   }
@@ -271,10 +275,11 @@ function renderLayerLabels() {
 function renderHUD() {
   const hud = el('hud');
   if (!hud) return;
-  const total = S.agents.size;
-  const working = [...S.agents.values()].filter(a => a.status === 'working' || a.status === 'needs_you' || a.status === 'stuck').length;
-  const needsYou = [...S.agents.values()].filter(a => a.status === 'needs_you').length;
-  const todayCost = [...S.agents.values()].reduce((s, a) => s + (a.cost_usd || 0), 0);
+  const all = activeAgents();
+  const total = all.length;
+  const working = all.filter(a => a.status === 'working' || a.status === 'needs_you' || a.status === 'stuck').length;
+  const needsYou = all.filter(a => a.status === 'needs_you').length;
+  const todayCost = all.reduce((s, a) => s + (a.cost_usd || 0), 0);
   const hudStyle = 'color:#fff;background:transparent;border-color:rgba(255,255,255,0.3)';
 
   hud.innerHTML =
@@ -808,15 +813,20 @@ function loadHistory() {
 }
 
 function connect() {
-  if (typeof WebgentzDemo !== 'undefined') {
+  if (new URLSearchParams(location.search).has('demo') && typeof WebgentzDemo !== 'undefined') {
     WebgentzDemo.start(receive);
     return;
   }
   const es = new EventSource('/stream');
+  window.__es = es;
   es.onmessage = function(e) {
     try { receive(JSON.parse(e.data)); } catch(ex) {}
   };
-  es.onerror = function() { setTimeout(connect, 3000); };
+  es.onerror = function() {
+    es.close();
+    window.__es = null;
+    setTimeout(connect, 3000);
+  };
 }
 
 // ===== Actions (called from inline onclick) ================================

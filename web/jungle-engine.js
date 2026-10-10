@@ -479,8 +479,8 @@
   }
 
   const KINDS = {
-    // Claude products — chameleons
-    "claude-code": { animal: "chameleon", color: "#d97757", label: "Claude Code" },
+    // Claude products — ants (primary) and chameleon (web/api)
+    "claude-code": { animal: "ant", color: "#d97757", label: "Claude Code" },
     "claude-api":  { animal: "chameleon", color: "#a855f7", label: "Claude API" },
     "claude-web":  { animal: "chameleon", color: "#f59e0b", label: "Claude.ai" },
     // Other AI providers — beetles
@@ -620,13 +620,21 @@
     function plan(a, to) {
       const m = MOVE[ANIM(a.data.agent_type)], S = []; let x = a.x, y = a.y;
       if (m === "crawl") {
-        const LV = [GROUND_Y, TUNNEL_FLOOR, DEEP_FLOOR], lv = v => LV.reduce((b, l, i) => (Math.abs(l - v) < Math.abs(LV[b] - v) ? i : b), 0);
+        // All walkable levels top-to-bottom. Transitions 0-2 (above ground) use trunk; 3-4 use shafts.
+        const LV = [CROWN, BRC, BRU, GROUND_Y, TUNNEL_FLOOR, DEEP_FLOOR];
+        const lv = v => LV.reduce((b, l, i) => (Math.abs(l - v) < Math.abs(LV[b] - v) ? i : b), 0);
         let li = lv(y); const lj = lv(to.y);
         if (Math.abs(y - LV[li]) > 1) { S.push(seg(x, y, x, LV[li], 0, "climb")); y = LV[li]; }
         while (li !== lj) {
-          const nx = li + Math.sign(lj - li), sh = Math.min(li, nx) === 0 ? UP_SHAFTS : DOWN_SHAFTS;
-          const s = sh.reduce((b, v) => (Math.abs(x - v) + Math.abs(v - to.x) < Math.abs(x - b) + Math.abs(b - to.x) ? v : b));
-          S.push(seg(x, y, s, y, 0, "crawl")); S.push(seg(s, y, s, LV[nx], 0, "climb")); x = s; y = LV[nx]; li = nx;
+          const nx = li + Math.sign(lj - li), minI = Math.min(li, nx);
+          let cx;
+          if (minI <= 2) {
+            cx = TRUNK_X; // above-ground: always climb on the main tree trunk
+          } else {
+            const sh = minI === 3 ? UP_SHAFTS : DOWN_SHAFTS;
+            cx = sh.reduce((b, v) => (Math.abs(x - v) + Math.abs(v - to.x) < Math.abs(x - b) + Math.abs(b - to.x) ? v : b));
+          }
+          S.push(seg(x, y, cx, y, 0, "crawl")); S.push(seg(cx, y, cx, LV[nx], 0, "climb")); x = cx; y = LV[nx]; li = nx;
         }
         S.push(seg(x, y, to.x, to.y, 0, "crawl"));
       } else if (m === "fly") {
