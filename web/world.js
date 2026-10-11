@@ -7,6 +7,7 @@ const BP = '<i class="corner tl"></i><i class="corner tr"></i><i class="corner b
 const SVG = {
   clock:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
   coin:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="10" x2="16" y2="10"/></svg>',
+  gear:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   scroll:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
   chevup:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>',
   chevdn:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>',
@@ -56,7 +57,7 @@ const S = {
   boardNotes: [],
   boardError: '',
   bankOpen: false,
-  timeOpen: true,
+  settingsOpen: true,
   hour: 12,
   dark: 0,
   auto: true,
@@ -257,7 +258,7 @@ function mountEngine() {
       if (ct) ct.textContent = clock(hour);
       // Only flip theme when the day/night threshold actually crosses
       if ((dark > 0.5) !== (prevDark > 0.5)) renderTheme();
-      renderTimePop();
+      renderSettingsPop();
     },
   });
   syncAgents();
@@ -305,13 +306,9 @@ function renderHUD() {
         '<span class="hud-n">' + working + '</span>' +
         '<span>working</span>' +
       '</div>' +
-      '<button class="btn-bp" id="btn-clock" aria-expanded="' + S.timeOpen + '" style="' + hudStyle + ';gap:6px;padding:0 12px">' +
-        SVG.clock +
+      '<button class="btn-bp" id="btn-settings" aria-expanded="' + S.settingsOpen + '" onclick="toggleSettings()" style="' + hudStyle + ';gap:6px;padding:0 12px">' +
+        SVG.gear +
         '<span id="hud-clock" style="font:600 13px/1 var(--font-heading);letter-spacing:0.04em">' + clock(S.hour) + '</span>' +
-      '</button>' +
-      '<button class="btn-bp" id="btn-bank" style="' + hudStyle + ';gap:6px;padding:0 12px" onclick="openBank()">' +
-        SVG.coin +
-        '<span style="font:600 14px/1 var(--font-heading)">' + fmtUsd(todayCost) + '</span>' +
       '</button>' +
       '<button class="btn-quest btn-bp" id="btn-quest" style="' + hudStyle + '" onclick="openQuests()">' +
         SVG.scroll +
@@ -321,19 +318,42 @@ function renderHUD() {
     '</div>';
 }
 
-function renderTimePop() {
+function renderSettingsPop() {
   const pop = el('time-pop');
   if (!pop) return;
+  if (!S.settingsOpen) { pop.hidden = true; return; }
   pop.hidden = false;
   pop.className = 'bp';
-  pop.style.cssText = 'top:68px;right:16px;width:200px;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:20;';
+  pop.style.cssText = 'top:68px;right:16px;width:240px;padding:14px;display:flex;flex-direction:column;gap:14px;z-index:20;';
+
   const isDark = S.darkOverride !== null ? S.darkOverride : S.dark > 0.5;
+  const isNight = S.hour >= 18 || S.hour < 6;
+  const agents = activeAgents();
+  const todayCost = agents.reduce(function(s,a){ return s + (a.cost_usd||0); }, 0);
+
+  function seg(active) {
+    return 'flex:1;padding:7px 0;font:600 12px/1 var(--font-heading);border:1px solid var(--p-line);cursor:pointer;' +
+      (active ? 'background:var(--p-soft);color:var(--p-fg)' : 'background:transparent;color:var(--p-mute)');
+  }
+
   pop.innerHTML =
     BP +
-    '<span style="font:600 11px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">APPEARANCE</span>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between">' +
+      '<span style="font:600 11px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">Bank</span>' +
+      '<span style="font:600 15px/1 var(--font-heading)">' + fmtUsd(todayCost) + '</span>' +
+    '</div>' +
+    '<button onclick="openBank()" style="width:100%;padding:7px 0;font:600 12px/1 var(--font-heading);border:1px solid var(--p-line);background:transparent;color:var(--p-mute);cursor:pointer">View details</button>' +
+    '<div style="height:1px;background:var(--p-line);margin:0 -2px"></div>' +
+    '<span style="font:600 11px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">Appearance</span>' +
     '<div style="display:flex;gap:6px">' +
-      '<button onclick="setDarkOverride(false)" style="flex:1;padding:8px 0;font:600 13px/1 var(--font-heading);border:1px solid var(--p-line);background:' + (!isDark ? 'var(--p-soft)' : 'transparent') + ';color:' + (!isDark ? 'var(--p-fg)' : 'var(--p-mute)') + ';cursor:pointer">Light</button>' +
-      '<button onclick="setDarkOverride(true)"  style="flex:1;padding:8px 0;font:600 13px/1 var(--font-heading);border:1px solid var(--p-line);background:' + (isDark  ? 'var(--p-soft)' : 'transparent') + ';color:' + (isDark  ? 'var(--p-fg)' : 'var(--p-mute)') + ';cursor:pointer">Dark</button>' +
+      '<button onclick="setDarkOverride(false)" style="' + seg(!isDark) + '">Light</button>' +
+      '<button onclick="setDarkOverride(true)"  style="' + seg(isDark)  + '">Dark</button>' +
+    '</div>' +
+    '<div style="height:1px;background:var(--p-line);margin:0 -2px"></div>' +
+    '<span style="font:600 11px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">Time of Day</span>' +
+    '<div style="display:flex;gap:6px">' +
+      '<button onclick="setTimeOfDay(false)" style="' + seg(!isNight) + '">Day</button>' +
+      '<button onclick="setTimeOfDay(true)"  style="' + seg(isNight)  + '">Night</button>' +
     '</div>';
 }
 
@@ -762,7 +782,7 @@ function renderTheme() {
 function render() {
   renderLayerLabels();
   renderHUD();
-  renderTimePop();
+  renderSettingsPop();
   renderHoverCard();
   renderBankTip();
   renderBoardTip();
@@ -916,21 +936,14 @@ function closeLedger() { S.ledgerOpen = false; render(); }
 function setLedgerTab(t){ S.ledgerTab = t; render(); }
 function setChannel(id) { S.ledgerChannel = id; render(); }
 function openQuests()  { closeHudPopups(); S.questsOpen = true; S.bankOpen = false; el('modal-back').hidden = false; render(); }
-function openBank()    { closeHudPopups(); S.bankOpen = true; S.questsOpen = false; el('modal-back').hidden = false; render(); }
+function openBank()    { closeHudPopups(); S.settingsOpen = false; S.bankOpen = true; S.questsOpen = false; el('modal-back').hidden = false; render(); }
 function closeModals() { S.questsOpen = false; S.bankOpen = false; el('modal-back').hidden = true; render(); }
-function toggleTimePop(){
-  const opening = !S.timeOpen;
-  closeHudPopups();
-  S.timeOpen = opening;
-  renderLedger();
-  renderTimePop();
+function toggleSettings(){
+  S.settingsOpen = !S.settingsOpen;
+  renderSettingsPop();
 }
-function closeTimePop(){ S.timeOpen = false; renderTimePop(); }
-function onHourSlide(v){ S.auto = false; if (world) world.setHour(parseFloat(v)); }
-function setPreset(h)  { S.auto = false; if (world) world.setHour(h); }
-function animatePreset(from, to){ S.auto = false; if (world) world.animateTo(to, 4, from, true); }
-function toggleAuto()  { S.auto = !S.auto; if (S.auto) applyRealTime(true); renderTimePop(); }
-function setDarkOverride(dark) { S.darkOverride = dark; renderTimePop(); renderTheme(); }
+function setTimeOfDay(night) { S.auto = false; if (world) world.setHour(night ? 22 : 12); }
+function setDarkOverride(dark) { S.darkOverride = dark; renderSettingsPop(); renderTheme(); }
 function toggleSect(k) { S.sectOpen[k] = !S.sectOpen[k]; renderAgentSheet(); }
 function setMeasure(m) { S.measure = m; renderBank(); }
 
@@ -1016,7 +1029,13 @@ el('modal-back').addEventListener('click', closeModals);
 document.addEventListener('pointerdown', function(e) {
   const target = e.target;
   const ledger = el('ledger-wrap');
+  const settingsPop = el('time-pop');
+  const settingsBtn = el('btn-settings');
 
+  if (S.settingsOpen && settingsPop && !settingsPop.contains(target) && settingsBtn && !settingsBtn.contains(target)) {
+    S.settingsOpen = false;
+    renderSettingsPop();
+  }
   if (S.ledgerOpen && !ledger.contains(target)) {
     S.ledgerOpen = false;
     renderLedger();
