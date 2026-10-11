@@ -60,6 +60,7 @@ const S = {
   hour: 12,
   dark: 0,
   auto: true,
+  darkOverride: null,
   animating: false,
   measure: 'cost',
   bankHistory: [],
@@ -325,31 +326,15 @@ function renderTimePop() {
   if (!pop) return;
   pop.hidden = false;
   pop.className = 'bp';
-  pop.style.cssText = 'top:68px;right:16px;width:320px;padding:16px;display:flex;flex-direction:column;gap:14px;z-index:20;';
+  pop.style.cssText = 'top:68px;right:16px;width:200px;padding:12px;display:flex;flex-direction:column;gap:10px;z-index:20;';
+  const isDark = S.darkOverride !== null ? S.darkOverride : S.dark > 0.5;
   pop.innerHTML =
     BP +
-    '<div style="display:flex;justify-content:space-between;align-items:center">' +
-      '<span style="font:600 13px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">TIME OF DAY</span>' +
-      '<span style="font:600 22px/1 var(--font-heading)">' + clock(S.hour) + '</span>' +
-    '</div>' +
-    '<input type="range" min="0" max="24" step="0.1" value="' + S.hour + '" oninput="onHourSlide(this.value)">' +
-    '<div class="preset-grid">' +
-      '<button onclick="setPreset(6)"  style="background:#f9a825;color:#1d1f20">Dawn</button>' +
-      '<button onclick="setPreset(12)" style="background:#fff9c4;color:#1d1f20">Noon</button>' +
-      '<button onclick="setPreset(18)" style="background:#ff7043;color:#fff">Dusk</button>' +
-      '<button onclick="setPreset(22)" style="background:#1a237e;color:#fff">Night</button>' +
-    '</div>' +
-    '<div style="display:flex;gap:8px">' +
-      '<button class="btn-secondary" style="flex:1;font:600 13px/1 var(--font-heading);padding:8px" onclick="animatePreset(17,21)">Watch sunset</button>' +
-      '<button class="btn-secondary" style="flex:1;font:600 13px/1 var(--font-heading);padding:8px" onclick="animatePreset(5,8)">Watch sunrise</button>' +
-    '</div>' +
-    '<button class="auto-row" onclick="toggleAuto()">' +
-      '<span class="auto-check ' + (S.auto ? 'on' : '') + '">' + (S.auto ? '✓' : '') + '</span>' +
-      '<div>' +
-        '<div style="font:600 14px/1.2 var(--font-body)">Follow real clock</div>' +
-        '<div style="font-size:12px;color:var(--p-mute);margin-top:3px">Keeps the jungle in sync with your local time</div>' +
-      '</div>' +
-    '</button>';
+    '<span style="font:600 11px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">APPEARANCE</span>' +
+    '<div style="display:flex;gap:6px">' +
+      '<button onclick="setDarkOverride(false)" style="flex:1;padding:8px 0;font:600 13px/1 var(--font-heading);border:1px solid var(--p-line);background:' + (!isDark ? 'var(--p-soft)' : 'transparent') + ';color:' + (!isDark ? 'var(--p-fg)' : 'var(--p-mute)') + ';cursor:pointer">Light</button>' +
+      '<button onclick="setDarkOverride(true)"  style="flex:1;padding:8px 0;font:600 13px/1 var(--font-heading);border:1px solid var(--p-line);background:' + (isDark  ? 'var(--p-soft)' : 'transparent') + ';color:' + (isDark  ? 'var(--p-fg)' : 'var(--p-mute)') + ';cursor:pointer">Dark</button>' +
+    '</div>';
 }
 
 function renderHoverCard() {
@@ -492,6 +477,12 @@ function renderAgentSheet() {
     return '<button class="color-swatch' + (isActive ? ' active' : '') + '" style="background:' + c + '" onclick="customizeAgent(\'' + esc(a.id) + '\',\'' + c + '\')" title="' + c + '"></button>';
   }).join('');
   const resetSwatch = '<button class="color-swatch reset-swatch' + (!currentColor ? ' active' : '') + '" onclick="customizeAgent(\'' + esc(a.id) + '\',null)" title="Default color"></button>';
+  const terminalSession = a.open && (a.open.app === 'Terminal' || a.open.app === 'iTerm2') && a.open.tty;
+  const lifecycleActions = a.status !== 'gone' ?
+    '<div class="sheet-actions">' +
+      '<button class="btn-secondary" onclick="dismissAgent(\'' + esc(a.id) + '\')">Send away</button>' +
+      (terminalSession ? '<button class="btn-secondary" onclick="closeAgentTerminal(\'' + esc(a.id) + '\')">Close terminal</button>' : '') +
+    '</div>' : '';
 
   sheet.innerHTML =
     BP +
@@ -510,6 +501,7 @@ function renderAgentSheet() {
     (customPanelOpen ? '<div class="color-picker-row">' + resetSwatch + swatches + '</div>' : '') +
     '<div class="sheet-body">' +
       (a.detail ? '<div style="font-size:14px">' + esc(a.detail) + '</div>' : '') +
+      lifecycleActions +
       needsBox +
       answerBox +
       '<div class="sheet-stat-grid bp">' + BP +
@@ -763,7 +755,8 @@ function renderBank() {
 function renderTheme() {
   const stage = el('stage');
   if (!stage) return;
-  stage.setAttribute('data-theme', S.dark > 0.5 ? 'dusk' : 'day');
+  const isDark = S.darkOverride !== null ? S.darkOverride : S.dark > 0.5;
+  stage.setAttribute('data-theme', isDark ? 'dusk' : 'day');
 }
 
 function render() {
@@ -855,6 +848,21 @@ function openAgentApp(id) {
   fetch('/api/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) }).catch(function(){});
 }
 
+function agentAction(path, id) {
+  return fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) })
+    .then(function(r) { return r.json().then(function(body) { if (!r.ok) throw new Error(body.error || 'Action failed'); return body; }); })
+    .catch(function(err) { window.alert(err.message || 'Could not complete the action'); });
+}
+
+function dismissAgent(id) {
+  agentAction('/api/dismiss', id).then(function(result) { if (result) closeSheet(); });
+}
+
+function closeAgentTerminal(id) {
+  if (!window.confirm('Close this agent’s terminal session?')) return;
+  agentAction('/api/close', id).then(function(result) { if (result) closeSheet(); });
+}
+
 function jumpTo(id) {
   S.selectedId = id;
   syncAgents();
@@ -922,6 +930,7 @@ function onHourSlide(v){ S.auto = false; if (world) world.setHour(parseFloat(v))
 function setPreset(h)  { S.auto = false; if (world) world.setHour(h); }
 function animatePreset(from, to){ S.auto = false; if (world) world.animateTo(to, 4, from, true); }
 function toggleAuto()  { S.auto = !S.auto; if (S.auto) applyRealTime(true); renderTimePop(); }
+function setDarkOverride(dark) { S.darkOverride = dark; renderTimePop(); renderTheme(); }
 function toggleSect(k) { S.sectOpen[k] = !S.sectOpen[k]; renderAgentSheet(); }
 function setMeasure(m) { S.measure = m; renderBank(); }
 
