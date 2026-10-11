@@ -53,8 +53,10 @@ const S = {
   ledgerChannel: null,
   seenT: 0,
   questsOpen: false,
+  boardNotes: [],
+  boardError: '',
   bankOpen: false,
-  timeOpen: false,
+  timeOpen: true,
   hour: 12,
   dark: 0,
   auto: true,
@@ -254,7 +256,7 @@ function mountEngine() {
       if (ct) ct.textContent = clock(hour);
       // Only flip theme when the day/night threshold actually crosses
       if ((dark > 0.5) !== (prevDark > 0.5)) renderTheme();
-      if (S.timeOpen) renderTimePop();
+      renderTimePop();
     },
   });
   syncAgents();
@@ -312,7 +314,7 @@ function renderHUD() {
       '</button>' +
       '<button class="btn-quest btn-bp" id="btn-quest" style="' + hudStyle + '" onclick="openQuests()">' +
         SVG.scroll +
-        '<span>Quest Log</span>' +
+        '<span>Quest Board</span>' +
         (needsYou > 0 ? '<span class="need-badge">' + needsYou + ' need you</span>' : '') +
       '</button>' +
     '</div>';
@@ -321,7 +323,6 @@ function renderHUD() {
 function renderTimePop() {
   const pop = el('time-pop');
   if (!pop) return;
-  if (!S.timeOpen) { pop.hidden = true; return; }
   pop.hidden = false;
   pop.className = 'bp';
   pop.style.cssText = 'top:68px;right:16px;width:320px;padding:16px;display:flex;flex-direction:column;gap:14px;z-index:20;';
@@ -330,7 +331,6 @@ function renderTimePop() {
     '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font:600 13px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">TIME OF DAY</span>' +
       '<span style="font:600 22px/1 var(--font-heading)">' + clock(S.hour) + '</span>' +
-      '<button class="time-close" aria-label="Close time controls" onpointerdown="closeTimePop();event.preventDefault()">' + SVG.x + '</button>' +
     '</div>' +
     '<input type="range" min="0" max="24" step="0.1" value="' + S.hour + '" oninput="onHourSlide(this.value)">' +
     '<div class="preset-grid">' +
@@ -647,60 +647,48 @@ function renderQuestLog() {
   panel.hidden = false;
   panel.className = 'bp modal-panel quest-panel-el';
 
-  const needsYou = sortedAgents().filter(function(a){ return a.status === 'needs_you'; });
-  const others = sortedAgents().filter(function(a){ return a.status !== 'needs_you'; });
-
-  const needsYouCards = needsYou.length === 0
-    ? '<div style="color:var(--p-mute);font-size:13px">All clear</div>'
-    : needsYou.map(function(a){
-        return '<div class="quest-card">' + BP +
-          '<div class="quest-card-hdr">' +
-            av(a, 28) +
-            '<div style="flex:1;min-width:0">' +
-              '<div style="font:600 16px/1.1 var(--font-heading)">' + esc(a.name) + '</div>' +
-              '<div style="font-size:12px;color:var(--p-mute)">' + esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + '</div>' +
-            '</div>' +
-            '<span class="status-tag ' + statusStyle(a.status) + '">' + esc(STATUS_LABEL[a.status] || a.status) + '</span>' +
-          '</div>' +
-          '<div style="font-size:14px">' + esc(openLabel(a)) + '</div>' +
-          '<div class="quest-card-btns">' +
-            '<button class="btn-primary" onclick="resolveAgent(\'' + esc(a.id) + '\',true);closeModals()">Approve</button>' +
-            '<button class="btn-secondary" onclick="resolveAgent(\'' + esc(a.id) + '\',false);closeModals()">Deny</button>' +
-            '<button class="btn-ghost" onclick="jumpTo(\'' + esc(a.id) + '\');closeModals()">' + SVG.find + ' Find</button>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-
-  const activeCols = others.map(function(a){
-    const tools = Object.entries(a.tool_counts || {}).filter(function(e){ return e[1] > 0; }).sort(function(a,b){ return b[1]-a[1]; }).slice(0,5);
-    return '<div class="todo-group">' +
-      '<div class="todo-hdr">' +
-        av(a, 20) +
-        '<b>' + esc(a.name) + '</b>' +
-        '<span class="status-tag ' + statusStyle(a.status) + '">' + esc(STATUS_LABEL[a.status] || a.status) + '</span>' +
-      '</div>' +
-      tools.map(function(e){
-        return '<div class="todo-item"><span class="todo-check done">' + SVG.check + '</span><span>' + esc(e[0]) + ' ×' + e[1] + '</span></div>';
-      }).join('') +
-      (a.activity
-        ? '<div class="todo-item"><span class="todo-check ' + (a.status === 'done' ? 'done' : '') + '">' + (a.status === 'done' ? SVG.check : '') + '</span><span>' + esc(a.activity) + '</span></div>'
-        : '') +
-    '</div>';
-  }).join('');
+  const agents = sortedAgents();
+  const activeCount = agents.filter(function(a){ return a.status !== 'sleeping' && a.status !== 'done'; }).length;
+  const draft = panel.querySelector('#quest-note-input');
+  const draftText = draft ? draft.value : '';
+  const draftFocused = draft && document.activeElement === draft;
+  const draftStart = draftFocused ? draft.selectionStart : null;
+  const draftEnd = draftFocused ? draft.selectionEnd : null;
+  const updates = agents.filter(function(a){ return a.status !== 'sleeping'; }).map(function(a){
+    const detail = a.activity || a.detail || agentSummary(a) || STATUS_LABEL[a.status] || 'Standing by';
+    return '<article class="board-update">' +
+      '<div class="board-update-hdr">' + av(a, 24) + '<b>' + esc(a.name) + '</b><span class="status-tag ' + statusStyle(a.status) + '">' + esc(STATUS_LABEL[a.status] || a.status) + '</span></div>' +
+      '<div>' + esc(detail) + '</div>' +
+      '<div class="board-update-meta">Live from agent activity</div>' +
+    '</article>';
+  }).join('') || '<div class="board-empty">No agent updates yet. They’ll show up here as agents start working.</div>';
+  const notes = S.boardNotes.slice().reverse().map(function(n){
+    return '<article class="board-note"><div class="board-note-meta"><b>' + esc(n.author || 'you') + '</b><time>' + esc(new Date((n.received || Date.now() / 1000) * 1000).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})) + '</time></div><div>' + esc(n.text) + '</div></article>';
+  }).join('') || '<div class="board-empty">Add a note or quest for your agents here.</div>';
 
   panel.innerHTML =
     BP +
     '<div class="modal-hdr">' +
       '<div>' +
-        '<div class="modal-title">Quest Log</div>' +
-        '<div class="modal-sub">' + needsYou.length + ' need your attention · ' + others.length + ' agents active</div>' +
+        '<div class="modal-title">Quest Board</div>' +
+        '<div class="modal-sub">Live agent updates and notes for the team</div>' +
       '</div>' +
       '<button class="modal-close" onclick="closeModals()">' + SVG.x + '</button>' +
     '</div>' +
     '<div class="quest-body">' +
-      '<div class="quest-col"><div class="quest-col-lbl">Needs you</div>' + needsYouCards + '</div>' +
-      '<div class="quest-col"><div class="quest-col-lbl">Active agents</div>' + activeCols + '</div>' +
+      '<section class="quest-col board-updates"><div class="quest-col-lbl">Agent updates <span>' + activeCount + ' active</span></div>' + updates + '</section>' +
+      '<section class="quest-col board-your-notes"><div class="quest-col-lbl">Your quests and notes</div>' +
+        '<form class="board-compose" onsubmit="postBoardNote(event)"><label for="quest-note-input">Leave a task, question, or note</label><textarea id="quest-note-input" maxlength="500" rows="3" placeholder="What should the agents know?">' + esc(draftText) + '</textarea>' +
+          (S.boardError ? '<div class="board-error" role="alert">' + esc(S.boardError) + '</div>' : '') +
+          '<button class="btn-primary" type="submit">Post to board</button></form>' +
+        '<div class="board-notes">' + notes + '</div>' +
+      '</section>' +
     '</div>';
+  if (draftFocused) {
+    const nextDraft = panel.querySelector('#quest-note-input');
+    nextDraft.focus();
+    nextDraft.setSelectionRange(draftStart, draftEnd);
+  }
 }
 
 function renderBank() {
@@ -813,9 +801,19 @@ function receive(msg) {
     for (const a of (msg.agents || [])) upsert(a);
   } else if (msg.type === 'agent') {
     if (msg.agent) upsert(msg.agent);
+  } else if (msg.type === 'note' && msg.note) {
+    if (!S.boardNotes.some(function(n){ return n.received === msg.note.received && n.text === msg.note.text; })) S.boardNotes.push(msg.note);
   }
   syncAgents();
   scheduleRender();
+}
+
+function loadBoardNotes() {
+  fetch('/api/notes?limit=100').then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
+    if (!data || !Array.isArray(data.notes)) return;
+    S.boardNotes = data.notes;
+    if (S.questsOpen) renderQuestLog();
+  }).catch(function(){});
 }
 
 function loadHistory() {
@@ -882,16 +880,36 @@ function resolveAgent(id, ok) {
   }
 }
 
+function postBoardNote(event) {
+  event.preventDefault();
+  const input = el('quest-note-input');
+  const text = (input && input.value || '').trim();
+  if (!text) return;
+  S.boardError = '';
+  fetch('/api/note', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text: text, author: 'you' }),
+  }).then(function(response){
+    if (!response.ok) throw new Error('Could not post. Please try again.');
+    return response.json();
+  }).then(function(data){
+    if (data.note && !S.boardNotes.some(function(n){ return n.received === data.note.received && n.text === data.note.text; })) S.boardNotes.push(data.note);
+    const draft = el('quest-note-input');
+    if (draft) draft.value = '';
+    render();
+  }).catch(function(){ S.boardError = 'Could not post to the board. Check that Webgentz is connected and try again.'; render(); });
+}
+
 function closeSheet() { S.selectedId = null; S.customPanel = null; render(); }
 function toggleCustomPanel(id) { S.customPanel = S.customPanel === id ? null : id; renderAgentSheet(); }
-function closeHudPopups() { S.ledgerOpen = false; S.timeOpen = false; }
+function closeHudPopups() { S.ledgerOpen = false; }
 function openLedger()  { closeHudPopups(); S.ledgerOpen = true; render(); }
 function closeLedger() { S.ledgerOpen = false; render(); }
 function setLedgerTab(t){ S.ledgerTab = t; render(); }
 function setChannel(id) { S.ledgerChannel = id; render(); }
 function openQuests()  { closeHudPopups(); S.questsOpen = true; S.bankOpen = false; el('modal-back').hidden = false; render(); }
 function openBank()    { closeHudPopups(); S.bankOpen = true; S.questsOpen = false; el('modal-back').hidden = false; render(); }
-function closeModals() { S.questsOpen = false; S.bankOpen = false; el('modal-back').hidden = true; S.timeOpen = false; render(); }
+function closeModals() { S.questsOpen = false; S.bankOpen = false; el('modal-back').hidden = true; render(); }
 function toggleTimePop(){
   const opening = !S.timeOpen;
   closeHudPopups();
@@ -988,37 +1006,19 @@ el('modal-back').addEventListener('click', closeModals);
 // before its click event is delivered.
 document.addEventListener('pointerdown', function(e) {
   const target = e.target;
-  const timePop = el('time-pop');
-  const clockButton = el('btn-clock');
   const ledger = el('ledger-wrap');
 
-  if (clockButton && clockButton.contains(target)) {
-    e.preventDefault();
-    toggleTimePop();
-    return;
-  }
-  if (S.timeOpen && !timePop.contains(target)) {
-    closeTimePop();
-  }
   if (S.ledgerOpen && !ledger.contains(target)) {
     S.ledgerOpen = false;
     renderLedger();
   }
 }, true);
 
-// Keep the clock button keyboard operable; pointer activation is handled above
-// so a live HUD redraw cannot interrupt the open/close action.
-document.addEventListener('click', function(e) {
-  const target = e.target;
-  if (e.detail === 0 && target.closest && target.closest('#btn-clock')) toggleTimePop();
-  if (e.detail === 0 && target.closest && target.closest('.time-close')) closeTimePop();
-});
-
 // ===== Escape key ========================================================
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   if (S.selectedId) { closeSheet(); return; }
-  if (S.questsOpen || S.bankOpen || S.timeOpen) { closeModals(); return; }
+  if (S.questsOpen || S.bankOpen) { closeModals(); return; }
   if (S.ledgerOpen) closeLedger();
 });
 
@@ -1043,6 +1043,7 @@ function init() {
   if (world) { if (S.auto) applyRealTime(false); else world.setHour(mq.matches ? 22 : 12); }
   connect();
   loadHistory();
+  loadBoardNotes();
   render();
 }
 
