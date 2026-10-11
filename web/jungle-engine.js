@@ -2,16 +2,16 @@
 // JungleEngine.mount(canvas, {hour, onHover, onClick, onBank, onBoard, onHour}) -> {setAgents, setHour, animateTo, destroy}
 (() => {
   "use strict";
-  const W = 576, H = 432, RS = 2, TRUNK_X = 288, GROUND_Y = 272, TUNNEL_TOP = 300, TUNNEL_FLOOR = 358, DEEP_TOP = 374, DEEP_FLOOR = 404;
-  const LAYERS = { canopy: { y: 104 }, understory: { y: 212 }, roots: { y: 358 } };
-  const CROWN = 60, BRC = 104, BRU = 212;
+  const W = 576, H = 432, RS = 2, TRUNK_X = 288, GROUND_Y = 310, TUNNEL_TOP = 328, TUNNEL_FLOOR = 410;
+  const LAYERS = { canopy: { y: 104 }, understory: { y: 200 }, roots: { y: 410 } };
+  const CROWN = 60, BRC = 104, BRU = 200;
   const BANK = { x: 196, y: GROUND_Y }, BOARD = { x: 382, y: GROUND_Y };
-  const UP_SHAFTS = [140, 452], DOWN_SHAFTS = [220, 470];
+  const UP_SHAFTS = [150], DOWN_SHAFTS = [];
   // where each layer goes for each kind of work: [x, y]
   const ZONES = {
     canopy: { library: [84, CROWN], workshop: [150, BRC], barracks: [222, BRC], campfire: [366, BRC], forge: [444, CROWN], market: [500, BRC], houses: [536, CROWN], square: [330, BRC] },
     understory: { library: [70, BRU], workshop: [150, GROUND_Y], barracks: [222, BRU], campfire: [366, BRU], forge: [480, GROUND_Y], market: [470, BRC], houses: [536, BRU], square: [336, BRU] },
-    roots: { library: [500, GROUND_Y], workshop: [120, DEEP_FLOOR], barracks: [222, TUNNEL_FLOOR], campfire: [366, TUNNEL_FLOOR], forge: [420, DEEP_FLOOR], market: [60, GROUND_Y], houses: [60, DEEP_FLOOR], square: [330, TUNNEL_FLOOR] },
+    roots: { library: [500, GROUND_Y], workshop: [120, TUNNEL_FLOOR], barracks: [222, TUNNEL_FLOOR], campfire: [366, TUNNEL_FLOOR], forge: [420, TUNNEL_FLOOR], market: [60, GROUND_Y], houses: [60, TUNNEL_FLOOR], square: [330, TUNNEL_FLOOR] },
   };
   const SPD = { crawl: 48, climb: 34, fly: 130, hop: 70, leap: 120, swing: 100 };
   const HGT = { ant: 15, snake: 10, frog: 10, hummingbird: 10, monkey: 19, toucan: 16, parrot: 18, owl: 15, chameleon: 14, beetle: 10 };
@@ -137,48 +137,61 @@
   }
   const LANTERNS = [];
   function drawSoil(c) {
-    const s = c.createLinearGradient(0, GROUND_Y, 0, H); s.addColorStop(0, "#5e3e25"); s.addColorStop(1, "#21150c");
+    const s = c.createLinearGradient(0, GROUND_Y, 0, H); s.addColorStop(0, "#5e3e25"); s.addColorStop(0.4, "#3a2517"); s.addColorStop(1, "#21150c");
     c.fillStyle = s; c.fillRect(0, GROUND_Y, W, H - GROUND_Y);
-    for (let y = GROUND_Y + 7; y < H; y += 8) for (let x = 0; x < W; x++) if (rand(x * 7 + y) < 0.45) px(c, x, y + Math.round(Math.sin(x / 23 + y) * 1.5), 1, 1, "rgba(0,0,0,0.18)");
-    for (let i = 0; i < 18; i++) {
-      const x = rand(i + 300) * W, y = GROUND_Y + 6 + rand(i + 400) * (H - GROUND_Y - 8);
-      if ((y > TUNNEL_TOP - 4 && y < TUNNEL_FLOOR + 6) || (y > DEEP_TOP - 6 && y < DEEP_FLOOR + 4)) continue;
+    // soil texture — skip the tunnel void
+    for (let y = GROUND_Y + 6; y < H; y += 8) for (let x = 0; x < W; x++) {
+      const cv = Math.sin(x / 29) * 7 + Math.sin(x / 11.3 + 1) * 4, fv = Math.sin(x / 24 + 0.9) * 5 + Math.sin(x / 10.2 + 2.1) * 3;
+      if (y > TUNNEL_TOP + cv - 6 && y < TUNNEL_FLOOR + fv + 6) continue;
+      if (rand(x * 7 + y) < 0.45) px(c, x, y + Math.round(Math.sin(x / 23 + y) * 1.5), 1, 1, "rgba(0,0,0,0.18)");
+    }
+    for (let i = 0; i < 12; i++) {
+      const x = rand(i + 300) * W, y = GROUND_Y + 6 + rand(i + 400) * (H - GROUND_Y - 10);
+      const cv = Math.sin(x / 29) * 7, fv = Math.sin(x / 24 + 0.9) * 5;
+      if (y > TUNNEL_TOP + cv - 4 && y < TUNNEL_FLOOR + fv + 6) continue;
       const w = 2 + Math.round(rand(i + 500) * 3);
       px(c, x, y, w, 2, "#7d6048"); px(c, x, y, w - 1, 1, "#a08268"); px(c, x + 1, y + 2, w, 1, "#2a1a10");
     }
-    px(c, 0, TUNNEL_TOP, W, TUNNEL_FLOOR - TUNNEL_TOP, "#1d130b"); dither(c, 0, TUNNEL_TOP, W, TUNNEL_FLOOR - TUNNEL_TOP, "#241810");
-    for (let x = 0; x < W; x++) { const bump = Math.round(rand(x + 900) * 2.4); px(c, x, TUNNEL_TOP - bump, 1, bump + 2, "#3a2717"); px(c, x, TUNNEL_FLOOR - 1 + Math.round(rand(x + 950) * 1.2), 1, 2, "#140c07"); }
-    px(c, 0, TUNNEL_FLOOR, W, 5, "#5a3d27"); px(c, 0, TUNNEL_FLOOR, W, 1, "#8a6544");
+    // organic tunnel — draw column by column so walls are naturally wavy
+    for (let x = 0; x < W; x++) {
+      const cv = Math.sin(x / 29) * 7 + Math.sin(x / 11.3 + 1) * 4 + Math.sin(x / 5.1 + 0.7) * 1.5;
+      const fv = Math.sin(x / 24 + 0.9) * 5 + Math.sin(x / 10.2 + 2.1) * 3 + Math.sin(x / 7.3 + 1.4);
+      const ceilY = Math.round(TUNNEL_TOP + cv), floorY = Math.round(TUNNEL_FLOOR + fv);
+      // void
+      px(c, x, ceilY, 1, floorY - ceilY, x % 3 ? "#140a04" : "#150c05");
+      // ceiling rough edge
+      const cEdge = Math.round(rand(x + 901) * 3);
+      for (let j = cEdge; j >= 0; j--) px(c, x, ceilY - j - 1, 1, 1, j < 1 ? "#3a2717" : j < 3 ? "#4a3220" : "#5a3e2a");
+      // floor edge
+      px(c, x, floorY, 1, 1, "#8a6544"); px(c, x, floorY + 1, 1, 2, "#4a3220"); px(c, x, floorY + 3, 1, 1, "#3a2717");
+      // stalactites hanging from ceiling
+      if (rand(x + 4440) < 0.06) {
+        const stH = 5 + Math.round(rand(x + 5550) * 13);
+        for (let d = 0; d < stH; d++) px(c, x - (d < stH / 2 ? 0 : 1), ceilY + 1 + d, d > stH - 3 ? 1 : 2, 1, d === 0 ? "#6a5030" : d < 3 ? "#3a2717" : "#251806");
+      }
+      // stalagmites rising from floor
+      if (rand(x + 6661) < 0.04) {
+        const stH = 3 + Math.round(rand(x + 7771) * 8);
+        for (let d = 0; d < stH; d++) px(c, x, floorY - 1 - d, d === stH - 1 ? 1 : 2, 1, d === 0 ? "#8a6040" : "#4a3220");
+      }
+    }
+    // root tendrils + hanging lanterns spaced along the tunnel
     LANTERNS.length = 0;
-    for (let x = 18; x < W; x += 96) {
-      px(c, x, TUNNEL_TOP + 2, 4, TUNNEL_FLOOR - TUNNEL_TOP - 2, "#5c3f26"); px(c, x, TUNNEL_TOP + 2, 1, TUNNEL_FLOOR - TUNNEL_TOP - 2, "#86603d");
-      px(c, x - 8, TUNNEL_TOP, 20, 4, "#6b4a2e"); px(c, x - 8, TUNNEL_TOP, 20, 1, "#94704a");
-      const lx = x + 28, ly = TUNNEL_TOP + 12; LANTERNS.push([lx, ly, 26]);
-      const glow = c.createRadialGradient(lx, ly, 0, lx, ly, 26); glow.addColorStop(0, "rgba(255,196,96,0.45)"); glow.addColorStop(1, "rgba(255,196,96,0)");
-      c.fillStyle = glow; c.fillRect(lx - 26, ly - 26, 52, 52);
-      px(c, lx, TUNNEL_TOP + 1, 1, 8, "#3a2716"); px(c, lx - 2, ly - 2, 5, 6, "#ffc45c"); px(c, lx - 1, ly - 1, 3, 3, "#fff3c4");
+    for (let lx = 70; lx < W; lx += 115) {
+      const cv = Math.round(Math.sin(lx / 29) * 7 + Math.sin(lx / 11.3 + 1) * 4);
+      const ceilY = TUNNEL_TOP + cv;
+      for (let d = 0; d < 18; d++) px(c, lx + Math.round(Math.sin(d * 0.9) * 1.5), ceilY + 1 + d, 1, 1, d < 5 ? "#5a3d1e" : "#3a2412");
+      const ly = ceilY + 19; LANTERNS.push([lx, ly, 22]);
+      const gl = c.createRadialGradient(lx, ly, 0, lx, ly, 22); gl.addColorStop(0, "rgba(255,196,96,0.5)"); gl.addColorStop(1, "rgba(255,196,96,0)");
+      c.fillStyle = gl; c.fillRect(lx - 22, ly - 22, 44, 44);
+      px(c, lx - 2, ly - 2, 5, 6, "#ffc45c"); px(c, lx - 1, ly - 1, 3, 3, "#fff3c4");
     }
-    // deep dig level
-    for (let x = 20; x < W - 20; x++) {
-      const edge = Math.min(x - 20, W - 21 - x), taper = edge < 14 ? (14 - edge) * 1.6 : 0;
-      const top = Math.round(DEEP_TOP + Math.sin(x / 19) * 2 + Math.sin(x / 7 + 2) + taper);
-      if (top >= DEEP_FLOOR) continue;
-      px(c, x, top - 1, 1, 2, "#3a2717"); px(c, x, top + 1, 1, DEEP_FLOOR - top - 1, (x + top) % 2 ? "#170f08" : "#1c120a");
+    // glowing mushrooms on the tunnel floor
+    for (const [xi, col] of [[62, "#6ff0d8"], [240, "#ffc45c"], [390, "#ff7ab0"], [500, "#6ff0d8"]]) {
+      const fv = Math.round(Math.sin(xi / 24 + 0.9) * 5 + Math.sin(xi / 10.2 + 2.1) * 3);
+      const fy = TUNNEL_FLOOR + fv;
+      px(c, xi, fy - 4, 3, 2, col); px(c, xi, fy - 5, 1, 1, col); px(c, xi, fy - 4, 1, 1, "#ffffff");
     }
-    px(c, 24, DEEP_FLOOR, W - 48, 3, "#4a3220"); px(c, 24, DEEP_FLOOR, W - 48, 1, "#7a5a3a");
-    for (const [x, w] of [[92, 16], [318, 20], [512, 12]]) for (let i = 0; i < w; i++) { const h = Math.round(Math.sin(i / w * Math.PI) * w * 0.3); px(c, x + i - w / 2, DEEP_FLOOR - h, 1, h, i < w / 2 ? "#7a5636" : "#5e4128"); }
-    for (const [x, y, col] of [[62, 414, "#6ff0d8"], [268, 420, "#ffc45c"], [402, 412, "#ff7ab0"], [498, 418, "#6ff0d8"]]) { px(c, x, y, 3, 2, col); px(c, x, y, 1, 1, "#ffffff"); }
-    for (const s of DOWN_SHAFTS) {
-      px(c, s - 6, TUNNEL_FLOOR - 1, 12, DEEP_TOP + 4 - TUNNEL_FLOOR, "#170f08");
-      px(c, s - 7, TUNNEL_FLOOR, 1, DEEP_TOP - TUNNEL_FLOOR + 2, "#3a2717"); px(c, s + 6, TUNNEL_FLOOR, 1, DEEP_TOP - TUNNEL_FLOOR + 2, "#3a2717");
-    }
-    for (const lx of [300, 370]) {
-      const ly = DEEP_TOP + 10; LANTERNS.push([lx, ly, 22]);
-      const glow = c.createRadialGradient(lx, ly, 0, lx, ly, 22); glow.addColorStop(0, "rgba(255,196,96,0.4)"); glow.addColorStop(1, "rgba(255,196,96,0)");
-      c.fillStyle = glow; c.fillRect(lx - 22, ly - 22, 44, 44);
-      px(c, lx, DEEP_TOP + 2, 1, 6, "#3a2716"); px(c, lx - 2, ly - 2, 5, 5, "#ffc45c"); px(c, lx - 1, ly - 1, 3, 2, "#fff3c4");
-    }
-    for (let i = 0; i < 4; i++) { const x = 40 + rand(i + 1234) * (W - 80); px(c, x, TUNNEL_FLOOR - 3, 1, 3, "#cfe8d0"); px(c, x - 2, TUNNEL_FLOOR - 5, 5, 2, "#6ff0d8"); px(c, x - 1, TUNNEL_FLOOR - 6, 3, 1, "#b8fff0"); }
   }
   function drawRoots(c) {
     c.lineCap = "round";
@@ -622,7 +635,7 @@
       const m = MOVE[ANIM(a.data.agent_type)], S = []; let x = a.x, y = a.y;
       if (m === "crawl") {
         // All walkable levels top-to-bottom. Transitions 0-2 (above ground) use trunk; 3-4 use shafts.
-        const LV = [CROWN, BRC, BRU, GROUND_Y, TUNNEL_FLOOR, DEEP_FLOOR];
+        const LV = [CROWN, BRC, BRU, GROUND_Y, TUNNEL_FLOOR];
         const lv = v => LV.reduce((b, l, i) => (Math.abs(l - v) < Math.abs(LV[b] - v) ? i : b), 0);
         let li = lv(y); const lj = lv(to.y);
         if (Math.abs(y - LV[li]) > 1) { S.push(seg(x, y, x, LV[li], 0, "climb")); y = LV[li]; }
@@ -632,7 +645,7 @@
           if (minI <= 2) {
             cx = TRUNK_X; // above-ground: always climb on the main tree trunk
           } else {
-            const sh = minI === 3 ? UP_SHAFTS : DOWN_SHAFTS;
+            const sh = UP_SHAFTS;
             cx = sh.reduce((b, v) => (Math.abs(x - v) + Math.abs(v - to.x) < Math.abs(x - b) + Math.abs(b - to.x) ? v : b));
           }
           S.push(seg(x, y, cx, y, 0, "crawl")); S.push(seg(cx, y, cx, LV[nx], 0, "climb")); x = cx; y = LV[nx]; li = nx;
@@ -665,7 +678,7 @@
       } else if (st === "idle" && Math.random() < 0.55) {
         const o = L === "canopy" ? [[r(40, 536), CROWN], [r(40, 536), CROWN], [r(30, 546), BRC]]
           : L === "understory" ? [[r(30, 546), BRU], [r(50, 526), GROUND_Y], [r(30, 546), BRC]]
-          : [[r(30, 546), TUNNEL_FLOOR], [r(40, 536), DEEP_FLOOR], [r(30, 546), GROUND_Y]];
+          : [[r(30, 546), TUNNEL_FLOOR], [r(30, 546), TUNNEL_FLOOR], [r(30, 546), GROUND_Y]];
         p = o[Math.floor(Math.random() * o.length)]; a.away = true;
       } else if (L === "roots") p = [a.base.x + r(-46, 46), a.base.y];
       if (p) plan(a, fixSpot(p[0], p[1]));
@@ -712,7 +725,7 @@
         if (an === "hummingbird" && st !== "sleeping") { oy = -5 + Math.sin(t * 3); step = Math.floor(t * 10) % 2; }
         if (st === "working") {
           if (an === "ant") { oy = -Math.abs(Math.sin(t * 10)); step = Math.floor(t * 8) % 2; if (Math.random() < dt * 9) PARTS.push({ x: a.x + a.face * 7, y: a.y - 2, vx: a.face * (15 + Math.random() * 25), vy: -30 - Math.random() * 30, life: 0.6, max: 0.6, c: "#9a7650", w: 1 }); }
-          else if (an === "snake") { ox = Math.sin(t * 4) * 1.5; step = Math.floor(t * 3) % 2; if (a.y === DEEP_FLOOR && Math.random() < dt * 4) PARTS.push({ x: a.x + a.face * 9, y: a.y - 2, vx: a.face * 20, vy: -25, life: 0.5, max: 0.5, c: "#9a7650", w: 1 }); }
+          else if (an === "snake") { ox = Math.sin(t * 4) * 1.5; step = Math.floor(t * 3) % 2; if (a.y === TUNNEL_FLOOR && Math.random() < dt * 4) PARTS.push({ x: a.x + a.face * 9, y: a.y - 2, vx: a.face * 20, vy: -25, life: 0.5, max: 0.5, c: "#9a7650", w: 1 }); }
           else if (an === "frog") { oy = -Math.max(0, Math.sin(t * 5)) * 3; step = oy < -1 ? 1 : 0; }
           else if (an === "hummingbird") { oy = -6 + Math.sin(t * 6) * 1.5; step = Math.floor(t * 16) % 2; }
           else if (an === "monkey") { oy = -Math.abs(Math.sin(t * 6)) * 2; step = Math.floor(t * 3) % 2; }
@@ -769,6 +782,8 @@
         if (opts.onHour && (now - lastNotify > 80 || !anim)) { lastNotify = now; opts.onHour(hour, dark, !!anim); }
       }
       for (const a of agents.values()) {
+        // Freeze the hovered agent in place so it is easier to inspect.
+        if (a.data.id === hoverId) continue;
         if (a.segs.length) {
           const s = a.segs[0]; s.u = Math.min(1, s.u + SPD[s.mode] * (a.spd || 1) * dt / s.len);
           const eu = s.u < 0.5 ? 2 * s.u * s.u : 1 - Math.pow(-2 * s.u + 2, 2) / 2;

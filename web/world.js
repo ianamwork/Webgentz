@@ -264,14 +264,13 @@ function mountEngine() {
 function el(id) { return document.getElementById(id); }
 
 function renderLayerLabels() {
-  const counts = { canopy: 0, understory: 0, roots: 0 };
+  const counts = { canopy: 0, roots: 0 };
   for (const a of activeAgents()) {
     const l = a.layer || 'understory';
     if (l in counts) counts[l]++;
   }
   const items = [
     ['ll-canopy',     'Canopy',     counts.canopy],
-    ['ll-understory', 'Understory', counts.understory],
     ['ll-roots',      'Roots',      counts.roots],
   ];
   for (const [id, label, n] of items) {
@@ -303,7 +302,7 @@ function renderHUD() {
         '<span class="hud-n">' + working + '</span>' +
         '<span>working</span>' +
       '</div>' +
-      '<button class="btn-bp" id="btn-clock" style="' + hudStyle + ';gap:6px;padding:0 12px" onclick="toggleTimePop()">' +
+      '<button class="btn-bp" id="btn-clock" aria-expanded="' + S.timeOpen + '" style="' + hudStyle + ';gap:6px;padding:0 12px">' +
         SVG.clock +
         '<span id="hud-clock" style="font:600 13px/1 var(--font-heading);letter-spacing:0.04em">' + clock(S.hour) + '</span>' +
       '</button>' +
@@ -331,7 +330,7 @@ function renderTimePop() {
     '<div style="display:flex;justify-content:space-between;align-items:center">' +
       '<span style="font:600 13px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">TIME OF DAY</span>' +
       '<span style="font:600 22px/1 var(--font-heading)">' + clock(S.hour) + '</span>' +
-      '<button class="time-close" aria-label="Close time controls" onclick="closeTimePop()">' + SVG.x + '</button>' +
+      '<button class="time-close" aria-label="Close time controls" onpointerdown="closeTimePop();event.preventDefault()">' + SVG.x + '</button>' +
     '</div>' +
     '<input type="range" min="0" max="24" step="0.1" value="' + S.hour + '" oninput="onHourSlide(this.value)">' +
     '<div class="preset-grid">' +
@@ -993,7 +992,12 @@ document.addEventListener('pointerdown', function(e) {
   const clockButton = el('btn-clock');
   const ledger = el('ledger-wrap');
 
-  if (S.timeOpen && !timePop.contains(target) && !clockButton.contains(target)) {
+  if (clockButton && clockButton.contains(target)) {
+    e.preventDefault();
+    toggleTimePop();
+    return;
+  }
+  if (S.timeOpen && !timePop.contains(target)) {
     closeTimePop();
   }
   if (S.ledgerOpen && !ledger.contains(target)) {
@@ -1001,6 +1005,14 @@ document.addEventListener('pointerdown', function(e) {
     renderLedger();
   }
 }, true);
+
+// Keep the clock button keyboard operable; pointer activation is handled above
+// so a live HUD redraw cannot interrupt the open/close action.
+document.addEventListener('click', function(e) {
+  const target = e.target;
+  if (e.detail === 0 && target.closest && target.closest('#btn-clock')) toggleTimePop();
+  if (e.detail === 0 && target.closest && target.closest('.time-close')) closeTimePop();
+});
 
 // ===== Escape key ========================================================
 document.addEventListener('keydown', function(e) {

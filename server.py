@@ -27,9 +27,10 @@ from urllib.parse import parse_qs, urlparse
 from memory import ObsidianMemory
 from webgentz_core import EventError, LayerConfig, Pricing, World, normalize_event
 
-HOST = os.environ.get("WEBGENTZ_HOST", "127.0.0.1")
+_cloud_port = os.environ.get("PORT")  # set by Fly.io, Railway, Render, etc.
+HOST = os.environ.get("WEBGENTZ_HOST", "0.0.0.0" if _cloud_port else "127.0.0.1")
 MEMORY_PATH = os.environ.get("WEBGENTZ_MEMORY")
-PORT = int(os.environ.get("WEBGENTZ_PORT", "8765"))
+PORT = int(os.environ.get("WEBGENTZ_PORT") or _cloud_port or "8765")
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "web"
 DB_PATH = Path(os.environ.get("WEBGENTZ_DB", ROOT / "webgentz.db"))

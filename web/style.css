@@ -37,6 +37,8 @@
 
 /* ===== Reset ============================================================= */
 *, *::before, *::after { box-sizing: border-box; }
+/* Inline panel display styles must never override the HTML hidden state. */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   overflow: hidden;
