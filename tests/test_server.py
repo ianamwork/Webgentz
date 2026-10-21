@@ -98,6 +98,14 @@ class ServerTests(unittest.TestCase):
             urllib.request.urlopen(req)
         self.assertEqual(ctx.exception.code, 403)
 
+    def test_browser_extensions_can_post(self):
+        event = {"session_id": "chatgpt-abc", "event": "start", "agent_type": "chatgpt"}
+        req = urllib.request.Request(self.base + "/event", data=json.dumps(event).encode(),
+                                     headers={"Content-Type": "application/json",
+                                              "Origin": "chrome-extension://abcdefghijklmnop"})
+        with urllib.request.urlopen(req) as resp:
+            self.assertEqual(resp.status, 200)
+
     def test_open_command_for_each_kind_of_place(self):
         cmd, label = server.open_command({"open": {"app": "Terminal", "tty": "/dev/ttys003"}}, "darwin")
         self.assertEqual((cmd[0], cmd[-1], label), ("osascript", "/dev/ttys003", "Terminal"))
