@@ -177,7 +177,7 @@ def normalize_event(raw, now=None):
     event = {"v": EVENT_VERSION, "session_id": str(session), "event": name,
              "received": now if now is not None else time.time()}
 
-    for key in ("agent_type", "name", "cwd", "model", "transcript_path", "source"):
+    for key in ("agent_type", "helper_type", "name", "cwd", "model", "transcript_path", "source"):
         if raw.get(key) is not None:
             event[key] = short_text(str(raw[key]), 300)
     if raw.get("layer") is not None:
@@ -421,6 +421,7 @@ class World:
             "id": sid,
             "name": event.get("name") or f"{project}-{sid[:4]}",
             "agent_type": event.get("agent_type") or "claude-code",
+            "helper_type": event.get("helper_type"),
             "layer": event.get("layer") or self.layers.layer_for(cwd),
             "project": project,
             "cwd": cwd,
@@ -454,7 +455,7 @@ class World:
             name = event["event"]
             now = event["received"]
             agent["last_seen"] = now
-            for key in ("cwd", "agent_type", "layer", "name"):
+            for key in ("cwd", "agent_type", "helper_type", "layer", "name"):
                 if event.get(key):
                     agent[key] = event[key]
             if event.get("model"):

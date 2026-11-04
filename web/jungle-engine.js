@@ -134,6 +134,17 @@
       const col = "#4b8460";
       bigLeaf(c, x, GROUND_Y - 12 - rand(i + 3210) * 18, 14 + rand(i + 3220) * 9, rand(i + 3230) < 0.5 ? -Math.PI * 0.15 : -Math.PI * 0.85, [col, col, "#558e69", col]);
     }
+    // Layered midground shrubs break up the long, empty gaps between trunks.
+    for (let i = 0; i < 34; i++) {
+      const x = rand(i + 3240) * W, y = 190 + rand(i + 3250) * 96;
+      if (Math.abs(x - TRUNK_X) < 44 || rand(i + 3260) < 0.3) continue;
+      const r = 5 + Math.round(rand(i + 3270) * 7);
+      const greens = ["#315b3d", "#3b7048", "#4d8354", "#63975b"];
+      blob(c, x, y + 2, r, greens[0], 0.72);
+      blob(c, x - 2, y, Math.max(2, r - 2), greens[1], 0.72);
+      blob(c, x - 3, y - 2, Math.max(2, Math.round(r * 0.48)), greens[2], 0.72);
+      if (i % 3 === 0) bigLeaf(c, x, y, 8 + rand(i + 3280) * 7, i % 2 ? -0.7 : -2.4, [greens[0], greens[1], greens[2], greens[3]]);
+    }
   }
   const LANTERNS = [];
   function drawSoil(c) {
@@ -210,6 +221,13 @@
       px(c, x0, y, half * 2, 1, "#6b4226"); px(c, x0, y, Math.round(half * 0.5), 1, "#86573a"); px(c, x0, y, 2, 1, "#a87450");
       px(c, TRUNK_X + Math.round(half * 0.45), y, Math.round(half * 0.55), 1, "#4f2f1a"); px(c, TRUNK_X + half - 2, y, 2, 1, "#371f10");
       for (let k = -3; k <= 3; k++) px(c, TRUNK_X + (k / 3.6) * half + Math.sin(y / 11 + k * 1.7) * 1.6, y, 1, 1, k < 0 ? "#6b4226" : "#3d2414");
+      // Broken, tapered grain catches the light without making the trunk a
+      // uniform striped column.
+      for (let k = 0; k < 4; k++) {
+        const gx = TRUNK_X - half + 5 + rand(k + Math.floor(y / 17) * 19) * Math.max(1, half * 2 - 10);
+        if (rand(k + Math.floor(y / 9) * 23) > 0.18) continue;
+        px(c, gx, y, 1, 1, k % 2 ? "#86573a" : "#3d2414");
+      }
     }
     for (const y of [70, 160, 250]) { blob(c, TRUNK_X - 8, y, 3, "#3d2414"); blob(c, TRUNK_X - 8, y, 1, "#86573a"); }
     for (let y = 30; y < GROUND_Y; y++) {
@@ -226,7 +244,9 @@
     const y = LAYERS[layer].y, start = TRUNK_X + side * (trunkHalf(y) - 4), end = side < 0 ? 10 : W - 10, len = Math.abs(end - start);
     for (let i = 0; i <= len; i++) {
       const x = start + side * i, thick = Math.round(11 - 7 * (i / len));
-      px(c, x, y, 1, thick, "#6b4226"); px(c, x, y, 1, 2, "#a87450"); px(c, x, y + thick - 2, 1, 2, "#3d2414");
+      const rise = Math.round(Math.sin(i / 19 + side) * 1.4 + Math.sin(i / 7) * 0.45);
+      px(c, x, y + rise, 1, thick, "#6b4226"); px(c, x, y + rise, 1, 2, "#a87450"); px(c, x, y + rise + thick - 2, 1, 2, "#3d2414");
+      if (i % 13 === 4) px(c, x, y + rise + 3, 1, Math.max(1, thick - 6), "#795033");
     }
     for (let i = 0; i < 9; i++) dither(c, start + side * (16 + rand(i + y + side * 50) * (len - 30)), y - 1, 6 + rand(i) * 8, 2, pal[3]);
     for (let i = 0; i < 2; i++) {
@@ -240,12 +260,22 @@
   // scalloped underside that stays above the canopy branch.
   function drawCanopy(c, pal) {
     for (let x = 0; x < W; x++) px(c, x, 0, 1, 50 + Math.sin(x / 37) * 3 + Math.sin(x / 13 + 1) * 1.5, pal[0]);
+    // A shadow layer behind the crown gives the canopy depth and an irregular edge.
+    for (let i = 0; i < 22; i++) {
+      const x = i * (W / 21) + (rand(i + 1250) - 0.5) * 12;
+      blob(c, x, 43 + rand(i + 1260) * 14, 13 + Math.round(rand(i + 1270) * 8), pal[1], 0.72);
+    }
     for (let i = 0; i < 8; i++) clump(c, (i + 0.5) * (W / 8) + (rand(i + 1300) - 0.5) * 18, 14 + rand(i + 1400) * 12, 30 + Math.round(rand(i + 1500) * 6), pal, i * 41 + 5);
     for (let i = 0; i < 18; i++) {
       const x = i * (W / 17) + (rand(i + 1600) - 0.5) * 8, y = 52 + rand(i + 1610) * 5, r = 11 + Math.round(rand(i + 1620) * 3);
       blob(c, x, y + 2, r, pal[0]); blob(c, x - 1, y, r - 1, pal[1]); blob(c, x - r * 0.35, y - r * 0.35, Math.round(r * 0.45), pal[2]);
     }
     for (const [x, s] of [[64, 1], [214, -1], [372, 1], [516, -1]]) bigLeaf(c, x, 60, 12, s > 0 ? Math.PI * 0.42 : Math.PI * 0.58, pal);
+    for (let i = 0; i < 26; i++) {
+      const x = rand(i + 1650) * W, y = 8 + rand(i + 1660) * 45;
+      if (i % 2 === 0) px(c, x, y, 2 + Math.round(rand(i + 1670) * 3), 1, pal[3]);
+      else px(c, x, y, 1, 2, pal[4]);
+    }
   }
   function drawVines(c, pal) {
     for (let i = 0; i < 6; i++) {

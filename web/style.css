@@ -3,13 +3,13 @@
   --font-heading: 'Barlow Condensed', sans-serif;
   --font-body:    'Barlow', sans-serif;
   --font-pixel:   'Press Start 2P', monospace;
-  --color-accent:     #5980a6;
-  --color-accent-200: #b8cce4;
-  --color-accent-300: #8bafd2;
-  --color-accent-500: #5980a6;
-  --color-accent-700: #3d5f80;
-  --color-accent-800: #2a4460;
-  --color-accent-900: #1a2f45;
+  --color-accent:     #668a49;
+  --color-accent-200: #c4d7a5;
+  --color-accent-300: #a3c27d;
+  --color-accent-500: #668a49;
+  --color-accent-700: #466635;
+  --color-accent-800: #354f2a;
+  --color-accent-900: #243b1c;
   --shadow-sm: 0 1px 4px rgba(0,0,0,0.14);
   --shadow-md: 0 2px 10px rgba(0,0,0,0.18);
   --shadow-lg: 0 6px 24px rgba(0,0,0,0.26);
@@ -300,6 +300,8 @@ button:active { filter: brightness(0.92); }
 .sheet-close-btn:hover, .sheet-icon-btn:hover { background: var(--p-soft); }
 .sheet-close-btn:active, .sheet-icon-btn:active { background: var(--p-line); }
 .sheet-icon-btn.active { background: var(--p-soft); border-color: var(--p-fg); }
+.sheet-actions { display: flex; gap: 8px; padding: 10px 0; }
+.sheet-actions button { flex: 1; }
 
 /* ===== Color picker ======================================================= */
 .color-picker-row {
@@ -490,6 +492,22 @@ button:active { filter: brightness(0.92); }
 .quest-col { padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .quest-col + .quest-col { border-left: 1px solid var(--p-line); }
 .quest-col-lbl { font: 600 13px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute); }
+.board-updates, .board-your-notes { gap: 12px; }
+.quest-col-lbl { display: flex; justify-content: space-between; align-items: center; }
+.quest-col-lbl span { font: 500 12px/1 var(--font-body); letter-spacing: 0; text-transform: none; }
+.board-update, .board-note { border: 1px solid var(--p-line); padding: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.4; }
+.board-update-hdr, .board-note-meta { display: flex; align-items: center; gap: 8px; }
+.board-update-hdr img { width: 24px; height: 24px; image-rendering: pixelated; }
+.board-update-hdr b, .board-note-meta b { font: 600 15px/1 var(--font-heading); flex: 1; }
+.board-update-meta, .board-note-meta time { font-size: 12px; color: var(--p-mute); }
+.board-compose { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--p-line); background: var(--p-soft); }
+.board-compose label { font: 600 13px/1.2 var(--font-heading); }
+.board-compose textarea { width: 100%; resize: vertical; min-height: 72px; padding: 10px; border: 1px solid var(--p-line); background: var(--p-bg); color: var(--p-fg); font: 400 14px/1.4 var(--font-body); }
+.board-compose textarea:focus { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.board-compose .btn-primary { align-self: flex-start; min-height: 36px; padding: 0 14px; }
+.board-notes { display: flex; flex-direction: column; gap: 8px; }
+.board-empty { color: var(--p-mute); font-size: 13px; line-height: 1.5; padding: 8px 0; }
+.board-error { color: #a33c2f; font-size: 13px; }
 .quest-card { border: 1px solid var(--p-line); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 .quest-card-hdr { display: flex; gap: 10px; align-items: center; }
 .quest-card-hdr img { width: 28px; height: 28px; image-rendering: pixelated; background: var(--p-soft); border: 1px solid var(--p-line); }
@@ -566,3 +584,13 @@ button:active { filter: brightness(0.92); }
 .h-hud-title { font: 800 17px var(--read); letter-spacing: 0.12em; }
 .navlink { color: var(--paper); text-decoration: none; }
 .navlink:hover { text-decoration: underline; }
+
+@media (max-width: 760px) {
+  .quest-panel-el { left: 12px; right: 12px; top: 64px; bottom: 40px; }
+  .quest-panel-el .modal-hdr { padding: 12px 14px; }
+  .quest-panel-el .modal-title { font-size: 21px; }
+  .quest-body { display: flex; flex-direction: column; overflow: hidden; }
+  .quest-col { padding: 12px 14px; }
+  .quest-col + .quest-col { border-left: 0; border-top: 1px solid var(--p-line); }
+  .board-updates, .board-your-notes { flex: 1 1 50%; min-height: 0; }
+}

@@ -481,6 +481,10 @@ function renderAgentSheet() {
   }
 
   const detailsBody =
+    (a.cwd ? '<div class="acc-kv"><span>Project folder</span><span title="' + esc(a.cwd) + '">' + esc(a.cwd.split('/').filter(Boolean).pop() || a.cwd) + '</span></div>' : '') +
+    (a.open && a.open.app ? '<div class="acc-kv"><span>Running in</span><span>' + esc(a.open.app) + (a.open.tty ? ' · ' + esc(a.open.tty.replace(/^\/dev\//, '')) : '') + '</span></div>' : '') +
+    (a.helper_type ? '<div class="acc-kv"><span>Claude helper</span><span>' + esc(a.helper_type) + '</span></div>' : '') +
+    '<div class="acc-kv"><span>Session</span><span title="' + esc(a.id) + '">' + esc(a.id.slice(0, 12)) + '</span></div>' +
     (a.started ? '<div class="acc-kv"><span>Started</span><span>' + ago(a.started) + '</span></div>' : '') +
     (a.since   ? '<div class="acc-kv"><span>Since</span><span>' + ago(a.since) + '</span></div>' : '') +
     (a.layer   ? '<div class="acc-kv"><span>Layer</span><span>' + esc(LAYER_LABEL[a.layer] || a.layer) + '</span></div>' : '') +
@@ -617,7 +621,7 @@ function renderLedger() {
             av(a, 28) +
             '<div class="roster-agent-info">' +
               '<div class="roster-agent-name">' + esc(a.name) + '</div>' +
-              '<div class="roster-agent-sub">' + esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + ' · ' + esc(LAYER_LABEL[a.layer] || '') + '</div>' +
+              '<div class="roster-agent-sub">' + esc(a.open && a.open.app ? a.open.app + (a.open.tty ? ' · ' + a.open.tty.replace(/^\/dev\//, '') : '') : (a.cwd ? a.cwd.split('/').filter(Boolean).pop() : (KIND_LABEL[a.agent_type] || a.agent_type || ''))) + (a.helper_type ? ' · helper: ' + esc(a.helper_type) : '') + '</div>' +
             '</div>' +
           '</div>' +
           '<div class="roster-job-cell">' +

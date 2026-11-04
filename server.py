@@ -159,6 +159,15 @@ class Store:
             self.db.commit()
         return {"received": now, "author": author, "text": text}
 
+    def notes(self, limit=100):
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT received, author, text FROM notes ORDER BY received DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+        return [{"received": received, "author": author, "text": text}
+                for received, author, text in reversed(rows)]
+
     _LEDGER_EVENTS = frozenset({"start", "prompt", "needs_you", "done", "end"})
     _LEDGER_TOOLS = frozenset({"Edit", "MultiEdit", "Write", "Bash", "Task", "Agent",
                                 "WebSearch", "WebFetch", "NotebookEdit", "TodoWrite"})
@@ -481,6 +490,19 @@ def close_agent(agent_id):
     return 200, {"ok": True, "closed": label}
 
 
+def dismiss_agent(agent_id):
+    """Mark an agent as having left the jungle without closing its app."""
+    agent = next((a for a in world.snapshot() if a["id"] == agent_id), None)
+    if agent is None:
+        return 404, {"error": "no agent with that id"}
+    try:
+        ingest({"session_id": agent_id, "event": "end",
+                "agent_type": agent.get("agent_type", "claude-code")})
+    except EventError as exc:
+        return 400, {"error": str(exc)}
+    return 200, {"ok": True, "dismissed": True}
+
+
 def spawn_session(cwd, platform=sys.platform):
     """Open a new terminal tab and run `claude` in the given directory."""
     if not isinstance(cwd, str) or not cwd.strip():
@@ -625,7 +647,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/event", "/api/open", "/api/close", "/api/spawn", "/api/note"):
+        if path not in ("/event", "/api/open", "/api/close", "/api/dismiss", "/api/spawn", "/api/note"):
             return self._json(404, {"error": "not found"})
         if self._from_other_website():
             return self._json(403, {"error": "requests from other websites are not allowed"})
@@ -644,6 +666,10 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict) or not isinstance(body.get("id"), str):
                 return self._json(400, {"error": "send {\"id\": \"<agent id>\"}"})
             return self._json(*close_agent(body["id"]))
+        if path == "/api/dismiss":
+            if not isinstance(body, dict) or not isinstance(body.get("id"), str):
+                return self._json(400, {"error": "send {\"id\": \"<agent id>\"}"})
+            return self._json(*dismiss_agent(body["id"]))
         if path == "/api/spawn":
             if not isinstance(body, dict) or not isinstance(body.get("cwd"), str):
                 return self._json(400, {"error": "send {\"cwd\": \"/path/to/project\"}"})
@@ -670,6 +696,9 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/daily":
             days = max(1, min(366, int((query.get("days") or ["14"])[0])))
             return self._json(200, {"days": days, "rows": store.daily(days)})
+        if url.path == "/api/notes":
+            limit = max(1, min(500, int((query.get("limit") or ["100"])[0])))
+            return self._json(200, {"notes": store.notes(limit)})
         if url.path == "/api/memory":
             n = max(1, min(200, int((query.get("n") or ["20"])[0])))
             project = (query.get("project") or [None])[0]
