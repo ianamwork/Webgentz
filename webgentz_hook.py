@@ -19,6 +19,12 @@ import urllib.request
 
 BASE_URL = os.environ.get("WEBGENTZ_URL", "http://127.0.0.1:8765")
 URL = BASE_URL + "/event"
+# Must match WEBGENTZ_TOKEN on the server when the server has one set.
+TOKEN = os.environ.get("WEBGENTZ_TOKEN") or None
+
+
+def auth_headers():
+    return {"Authorization": f"Bearer {TOKEN}"} if TOKEN else {}
 
 
 # The app Claude Code is running in, so clicking the agent can bring it back.
@@ -109,7 +115,8 @@ def _mark_context_injected(session_id):
 
 def fetch_context():
     """Fetch You.md + Org.md from the server and return them as a single string."""
-    resp = urllib.request.urlopen(BASE_URL + "/api/memory/context", timeout=2)
+    request = urllib.request.Request(BASE_URL + "/api/memory/context", headers=auth_headers())
+    resp = urllib.request.urlopen(request, timeout=2)
     data = json.loads(resp.read())
     pages = data.get("pages", [])
     if not pages:
@@ -121,7 +128,7 @@ def main():
     try:
         payload = transform(json.loads(sys.stdin.read()))
         request = urllib.request.Request(
-            URL, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"}
+            URL, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", **auth_headers()}
         )
         urllib.request.urlopen(request, timeout=1).close()
     except Exception:

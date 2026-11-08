@@ -855,7 +855,7 @@ function connect() {
     WebgentzDemo.start(receive);
     return;
   }
-  const es = new EventSource('/stream');
+  const es = new EventSource(typeof webgentzStreamUrl === 'function' ? webgentzStreamUrl() : '/stream');
   window.__es = es;
   es.onmessage = function(e) {
     try { receive(JSON.parse(e.data)); } catch(ex) {}

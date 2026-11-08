@@ -196,6 +196,31 @@ Everything runs on your own machine. Nothing is sent anywhere else, except that
 
 Run the tests with `python3 -m unittest discover tests`.
 
+## Running it on a server (Fly.io and others)
+
+The jungle has no login. On your own Mac that is fine, because it only listens
+on `127.0.0.1`. Anywhere else, set a shared secret so strangers cannot read your
+agents or send fake events:
+
+```bash
+fly secrets set WEBGENTZ_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+```
+
+With `WEBGENTZ_TOKEN` set, `POST /event`, every `/api/...` address and the live
+stream need the token, sent as `Authorization: Bearer <token>` or `?token=<token>`.
+Wrong or missing tokens get `401`. The page itself still loads without one.
+
+- **Hook, Python helper, proxy, Codex watcher:** set the same `WEBGENTZ_TOKEN`
+  (and `WEBGENTZ_URL=https://your-app.fly.dev`) wherever they run. They send it
+  for you. You can also pass `Agent(..., token="...")`.
+- **The browser:** open `https://your-app.fly.dev/?token=<token>` once. The page
+  remembers the token in that browser and removes it from the address bar.
+- **The tracker userscript** (`web/tracker.user.js`) only talks to `127.0.0.1`
+  and does not send a token.
+
+Prefer the header for scripts: a token in a URL can end up in proxy logs and
+browser history. If `WEBGENTZ_TOKEN` is not set, nothing changes.
+
 ## Settings
 
 | Environment variable           | Default                 | What it does                           |
@@ -203,6 +228,7 @@ Run the tests with `python3 -m unittest discover tests`.
 | `WEBGENTZ_PORT`                | `8765`                  | port the server listens on             |
 | `WEBGENTZ_DB`                  | `webgentz.db`           | where the history is saved             |
 | `WEBGENTZ_URL`                 | `http://127.0.0.1:8765` | where hooks and helpers send events    |
+| `WEBGENTZ_TOKEN`               | not set                 | shared secret the server requires and senders send |
 | `WEBGENTZ_CONFIG`              | `webgentz.json`         | which projects live on which layer     |
 | `WEBGENTZ_PRICING`             | `pricing.json`          | dollar prices per model                |
 | `WEBGENTZ_KEEP_DAYS`           | `30`                    | how many days of history to keep       |

@@ -10,6 +10,7 @@ Then open:    http://localhost:8765
 Only the Python standard library is used, so there is nothing to install.
 """
 
+import hmac
 import json
 import os
 import queue
@@ -43,6 +44,9 @@ NOTIFY = os.environ.get("WEBGENTZ_NOTIFY", "1") != "0"
 # Say when an agent finishes a task that took at least this long.
 DONE_ALERT_AFTER_SECONDS = int(os.environ.get("WEBGENTZ_DONE_ALERT_SECONDS", "60"))
 MAX_EVENT_BYTES = 256 * 1024
+# Optional shared secret. When set, /event, /api/* and /stream need it, sent as
+# "Authorization: Bearer <token>" or "?token=<token>". Unset means no check.
+TOKEN = os.environ.get("WEBGENTZ_TOKEN") or None
 
 # Origins allowed to POST /event from a browser (the tracker userscript).
 # These are AI web tools whose pages run the tracker.user.js userscript.
@@ -617,9 +621,23 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin", "")
         if self._is_tracker_origin(origin):
             self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
         self.wfile.write(body)
+
+    def _authorized(self):
+        """True when no WEBGENTZ_TOKEN is set, or the request carries it."""
+        if not TOKEN:
+            return True
+        header = self.headers.get("Authorization", "")
+        if header[:7].lower() == "bearer ":
+            sent = header[7:].strip()
+        else:
+            sent = (parse_qs(urlparse(self.path).query).get("token") or [""])[0]
+        return hmac.compare_digest(sent.encode(), TOKEN.encode())
+
+    def _unauthorized(self):
+        return self._json(401, {"error": "missing or wrong token (set WEBGENTZ_TOKEN)"})
 
     def _from_other_website(self):
         """Browsers say which site a request came from. Only our own page and
@@ -637,7 +655,7 @@ class Handler(BaseHTTPRequestHandler):
         if self._is_tracker_origin(origin):
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", origin)
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
             self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
             self.send_header("Content-Length", "0")
             self.end_headers()
@@ -649,6 +667,8 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path not in ("/event", "/api/open", "/api/close", "/api/dismiss", "/api/spawn", "/api/note"):
             return self._json(404, {"error": "not found"})
+        if not self._authorized():
+            return self._unauthorized()
         if self._from_other_website():
             return self._json(403, {"error": "requests from other websites are not allowed"})
         length = int(self.headers.get("Content-Length") or 0)
@@ -691,6 +711,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         query = parse_qs(url.query)
+        if (url.path == "/stream" or url.path.startswith("/api/")) and not self._authorized():
+            return self._unauthorized()
         if url.path == "/api/state":
             return self._json(200, {"agents": world.snapshot(), "now": time.time()})
         if url.path == "/api/daily":

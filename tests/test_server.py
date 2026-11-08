@@ -12,6 +12,7 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -22,6 +23,8 @@ os.environ["WEBGENTZ_NOTIFY"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import server  # noqa: E402
+import webgentz_client  # noqa: E402
+from webgentz_client import Agent  # noqa: E402
 
 
 class ServerTests(unittest.TestCase):
@@ -133,6 +136,92 @@ class ServerTests(unittest.TestCase):
         n.check({**agent, "status": "working"})
         n.check(agent)
         self.assertEqual(len(shown), 2)
+
+
+class TokenTests(unittest.TestCase):
+    """With WEBGENTZ_TOKEN set, events, the API and the stream need the token."""
+
+    TOKEN = "s3cret-token"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+        cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
+        threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+
+    def setUp(self):
+        patcher = mock.patch.object(server, "TOKEN", self.TOKEN)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def request(self, path, body=None, token=None, read_line=False):
+        """Return the HTTP status (and the first line of the body if asked)."""
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        data = json.dumps(body).encode() if body is not None else None
+        req = urllib.request.Request(self.base + path, data=data, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=5) as r:
+                return (r.status, r.readline()) if read_line else r.status
+        except urllib.error.HTTPError as e:
+            if read_line:
+                return e.code, e.read()
+            e.read()
+            return e.code
+
+    def event(self, sid):
+        return {"session_id": sid, "event": "start", "agent_type": "python"}
+
+    def test_requests_without_a_token_are_rejected(self):
+        self.assertEqual(self.request("/event", self.event("no-token")), 401)
+        self.assertEqual(self.request("/api/note", {"text": "hi"}), 401)
+        self.assertEqual(self.request("/api/state"), 401)
+        self.assertEqual(self.request("/api/daily?days=1"), 401)
+        self.assertEqual(self.request("/stream"), 401)
+        sids = [a["id"] for a in server.world.snapshot()]
+        self.assertNotIn("no-token", sids)
+
+    def test_wrong_token_is_rejected(self):
+        self.assertEqual(self.request("/event", self.event("wrong"), token="nope"), 401)
+        self.assertEqual(self.request("/api/state", token="nope"), 401)
+        self.assertEqual(self.request("/api/state?token=nope"), 401)
+        self.assertEqual(self.request("/stream?token="), 401)
+
+    def test_bearer_header_is_allowed(self):
+        self.assertEqual(self.request("/event", self.event("bearer-ok"), token=self.TOKEN), 200)
+        self.assertEqual(self.request("/api/state", token=self.TOKEN), 200)
+        status, line = self.request("/stream", token=self.TOKEN, read_line=True)
+        self.assertEqual(status, 200)
+        self.assertTrue(line.startswith(b"data: "))
+
+    def test_token_in_query_is_allowed(self):
+        self.assertEqual(self.request(f"/event?token={self.TOKEN}", self.event("query-ok")), 200)
+        self.assertEqual(self.request(f"/api/state?token={self.TOKEN}"), 200)
+        status, line = self.request(f"/stream?token={self.TOKEN}", read_line=True)
+        self.assertEqual(status, 200)
+        self.assertIn(b'"type": "state"', line)
+
+    def test_page_itself_needs_no_token(self):
+        self.assertEqual(self.request("/"), 200)
+        self.assertEqual(self.request("/auth.js"), 200)
+
+    def test_client_sends_its_token(self):
+        sid = "client-token"
+        agent = Agent("token-bot", session_id=sid, url=self.base, token=self.TOKEN)
+        agent.start()
+        webgentz_client._get_sender().flush()
+        self.assertIn(sid, [a["id"] for a in server.world.snapshot()])
+
+        stray = Agent("stray-bot", session_id="client-no-token", url=self.base, token=None)
+        stray.token = None  # ignore any WEBGENTZ_TOKEN in the test runner's environment
+        stray.start()
+        webgentz_client._get_sender().flush()
+        self.assertNotIn("client-no-token", [a["id"] for a in server.world.snapshot()])
 
 
 if __name__ == "__main__":
