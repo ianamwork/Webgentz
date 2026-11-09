@@ -1,5 +1,6 @@
 // The bridge to JungleEngine (web/jungle-engine.js): mounting it, feeding it
-// agents, the canvas cursor, and the real-time clock.
+// agents, fitting the canvas to the window, the canvas cursor, and the
+// real-time clock.
 import { autoHour, clock, el } from './format.js';
 import { S, closeHudPopups } from './state.js';
 import { activeAgents, toEngineAgent } from './agents.js';
@@ -39,7 +40,8 @@ export function mountEngine() {
     selectedId: function() { return S.selectedId; },
     onHover: function(agent, pos, place) {
       S.hover = agent;
-      S.hoverPos = pos;
+      // The engine gives positions inside the canvas; panels are placed in the stage.
+      S.hoverPos = pos && { x: pos.x + canvas.offsetLeft, y: pos.y + canvas.offsetTop };
       S.bankHover = place === 'bank';
       S.boardHover = place === 'board';
       // Only update the lightweight floating elements, not the whole page
@@ -86,7 +88,61 @@ export function mountEngine() {
     },
   });
   syncAgents();
+  layoutWorld();
 }
+
+// ===== Fitting the world to the window ====================================
+// The art is 576×432 (4:3). Scale it to fit the stage without distorting it,
+// and when it is at least 2 device pixels per art pixel, round down to a
+// whole number so every art pixel is the same size (crisp on retina too).
+// The space left over shows #world-fill: a tiny, blurred copy of the scene.
+// The stage gets --world-x/y/w/h so the layer labels can follow the art.
+export function layoutWorld() {
+  const canvas = el('world'), stage = el('stage');
+  if (!canvas || !stage || !window.JungleEngine) return;
+  const W = JungleEngine.W, H = JungleEngine.H;
+  const dpr = window.devicePixelRatio || 1;
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  let s = Math.min(sw * dpr / W, sh * dpr / H);   // device pixels per art pixel
+  if (s >= 2) s = Math.floor(s);
+  const w = W * s / dpr, h = H * s / dpr;
+  // Snap the offset to whole device pixels so the grid does not straddle them.
+  const x = Math.round((sw - w) / 2 * dpr) / dpr, y = Math.round((sh - h) / 2 * dpr) / dpr;
+  Object.assign(canvas.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+  stage.style.setProperty('--world-x', x + 'px');
+  stage.style.setProperty('--world-y', y + 'px');
+  stage.style.setProperty('--world-w', w + 'px');
+  stage.style.setProperty('--world-h', h + 'px');
+  stage.classList.toggle('world-banded', w < sw - 1 || h < sh - 1);
+}
+
+(function watchSize() {
+  const stage = el('stage');
+  if (!stage) return;
+  if (window.ResizeObserver) new ResizeObserver(layoutWorld).observe(stage);
+  else window.addEventListener('resize', layoutWorld);
+  // devicePixelRatio changes (browser zoom, moving to another screen) without
+  // always resizing the stage, so listen for it too.
+  (function watchDpr() {
+    const mq = window.matchMedia('(resolution: ' + (window.devicePixelRatio || 1) + 'dppx)');
+    mq.addEventListener('change', function once() { mq.removeEventListener('change', once); layoutWorld(); watchDpr(); });
+  })();
+})();
+
+// Refresh the soft fill four times a second from the real canvas. It is 48×36
+// pixels, so this costs next to nothing; it stops while the tab is hidden.
+(function fillLoop() {
+  const fill = el('world-fill'), canvas = el('world');
+  if (!fill || !canvas) return;
+  fill.width = 48; fill.height = 36;
+  const fctx = fill.getContext('2d');
+  fctx.imageSmoothingEnabled = true;
+  fctx.imageSmoothingQuality = 'high';
+  setInterval(function() {
+    if (document.hidden || !el('stage').classList.contains('world-banded')) return;
+    fctx.drawImage(canvas, 0, 0, fill.width, fill.height);
+  }, 250);
+})();
 
 export function applyRealTime(animate) {
   if (!world) return;

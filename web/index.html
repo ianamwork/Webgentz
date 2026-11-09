@@ -10,12 +10,13 @@
 </head>
 <body>
   <div id="stage" data-theme="day">
+    <canvas id="world-fill" aria-hidden="true"></canvas>
     <canvas id="world"></canvas>
 
     <!-- layer labels -->
-    <div class="layer-lbl" id="ll-canopy"     style="top:22%;left:16px;pointer-events:none;"></div>
-    <div class="layer-lbl" id="ll-understory" style="top:46%;left:16px;pointer-events:none;"></div>
-    <div class="layer-lbl" id="ll-roots"      style="top:78%;left:16px;pointer-events:none;"></div>
+    <div class="layer-lbl" id="ll-canopy"     style="pointer-events:none;"></div>
+    <div class="layer-lbl" id="ll-understory" style="pointer-events:none;"></div>
+    <div class="layer-lbl" id="ll-roots"      style="pointer-events:none;"></div>
 
     <!-- HUD top bar -->
     <header id="hud"></header>

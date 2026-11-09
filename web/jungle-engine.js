@@ -615,6 +615,18 @@
     let band = -1, agents = new Map(), hoverId = null, bankHover = false, raf = 0, last = performance.now(), alive = true;
     let hour = opts.hour ?? 12, composedAt = -99, dark = 0, anim = null, lastNotify = 0;
     const flies = Array.from({ length: 28 }, (_, i) => ({ x: rand(i + 5000) * W, y: 60 + rand(i + 5100) * 200, p: rand(i + 5200) * 6.28 }));
+    // Ambient: a handful of leaves drifting down from the canopy, swaying as
+    // they fall. Off under prefers-reduced-motion.
+    const reduceMotion = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+    const LEAF_COLS = ["#6b9a3c", "#8db04f", "#4f7d2e", "#a3b84a"];
+    function dropLeaf(l, anywhere) {
+      l.x = 24 + Math.random() * (W - 48);
+      l.y = anywhere ? 50 + Math.random() * (GROUND_Y - 80) : 36 + Math.random() * 40;
+      l.vy = 7 + Math.random() * 6; l.sway = 5 + Math.random() * 9; l.p = Math.random() * 6.28;
+      l.c = LEAF_COLS[Math.floor(Math.random() * LEAF_COLS.length)];
+      return l;
+    }
+    const leaves = Array.from({ length: 7 }, () => dropLeaf({}, true));
     { const f = far.getContext("2d"); f.setTransform(RS, 0, 0, RS, 0, 0); drawFar(f); }
     { const f = front.getContext("2d"); f.setTransform(RS, 0, 0, RS, 0, 0); drawFrontLeaves(f); }
 
@@ -806,6 +818,8 @@
     }
     function frame(now) {
       if (!alive) return;
+      // Hidden tab: stop drawing until it is visible again (see onVisibility).
+      if (document.hidden) { raf = 0; return; }
       const dt = Math.min(0.05, (now - last) / 1000); last = now; const t = now / 1000;
       if (anim) {
         const p = Math.min(1, (now - anim.start) / (anim.dur * 1000)), k = anim.linear ? p : p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
@@ -838,6 +852,19 @@
         ctx.globalAlpha = Math.min(1, p.life / p.max * 1.5); px(ctx, p.x, p.y, p.w, 1, p.c);
       }
       ctx.globalAlpha = 1;
+      if (!reduceMotion.matches) {
+        for (const l of leaves) {
+          l.y += l.vy * dt;
+          if (l.y > GROUND_Y - 2) dropLeaf(l, false);
+          const x = l.x + Math.sin(t * 0.9 + l.p) * l.sway;
+          // Fade in under the canopy and out just above the forest floor.
+          const fade = Math.max(0, Math.min(1, (l.y - 40) / 24, (GROUND_Y - 2 - l.y) / 30));
+          ctx.globalAlpha = fade * (0.85 - dark * 0.45);
+          // Tumble: alternate between lying flat and edge-on.
+          if (Math.sin(t * 2.2 + l.p) > 0) px(ctx, x, l.y, 2, 1, l.c); else px(ctx, x, l.y, 1, 2, l.c);
+        }
+        ctx.globalAlpha = 1;
+      }
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(front, 0, 0); ctx.setTransform(RS, 0, 0, RS, 0, 0);
       if (dark > 0.35) for (const f of flies) {
         const x = f.x + Math.sin(t * 0.6 + f.p) * 10, y = f.y + Math.cos(t * 0.8 + f.p) * 6, al = (0.4 + 0.6 * Math.max(0, Math.sin(t * 2 + f.p))) * Math.min(1, (dark - 0.35) / 0.4);
@@ -866,14 +893,21 @@
       if (a) opts.onClick && opts.onClick(a.data); else if (inBank(p)) opts.onBank && opts.onBank(); else if (inBoard(p)) opts.onBoard && opts.onBoard(); else opts.onClick && opts.onClick(null);
     }
     canvas.addEventListener("mousemove", onMove); canvas.addEventListener("mouseleave", onLeave); canvas.addEventListener("click", onClick);
+    // Pause the loop while the tab is hidden and resume where it left off.
+    function onVisibility() {
+      if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+      else if (alive && !raf) { last = performance.now(); raf = requestAnimationFrame(frame); }
+    }
+    document.addEventListener("visibilitychange", onVisibility);
     scenery(2); raf = requestAnimationFrame(frame);
     return {
       setAgents,
       setHour(h) { anim = null; hour = ((h % 24) + 24) % 24; },
       animateTo(to, secs, from, linear) { const f = from ?? hour; let tt = to; while (tt < f) tt += 24; anim = { from: f, to: tt, start: performance.now(), dur: secs, linear: !!linear }; },
       getHour() { return hour; },
+      running() { return !!raf; },
       positions() { const o = {}; for (const a of agents.values()) o[a.data.id] = { x: a.x / W, y: a.y / H }; return o; },
-      destroy() { alive = false; cancelAnimationFrame(raf); canvas.removeEventListener("mousemove", onMove); canvas.removeEventListener("mouseleave", onLeave); canvas.removeEventListener("click", onClick); },
+      destroy() { alive = false; cancelAnimationFrame(raf); document.removeEventListener("visibilitychange", onVisibility); canvas.removeEventListener("mousemove", onMove); canvas.removeEventListener("mouseleave", onLeave); canvas.removeEventListener("click", onClick); },
     };
   }
   window.JungleEngine = { mount, avatar, KINDS, W, H };

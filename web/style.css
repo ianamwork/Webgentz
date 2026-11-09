@@ -107,6 +107,8 @@ h2 { margin: 0; font: inherit; }
   color: var(--p-fg);
 }
 
+/* jungle/engine.js layoutWorld() sizes and centres the canvas at the art's
+   4:3 shape (whole-pixel scale where it can); these are only the defaults. */
 #world {
   position: absolute;
   inset: 0;
@@ -116,9 +118,29 @@ h2 { margin: 0; font: inherit; }
   image-rendering: pixelated;
   cursor: default;
 }
+/* Behind the art: a tiny copy of the scene, blurred and dimmed, so the space
+   left around the 4:3 world reads as more jungle, not as black bars. */
+#world-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(18px) brightness(0.55) saturate(1.15);
+  transform: scale(1.08);
+  pointer-events: none;
+}
+#stage:not(.world-banded) #world-fill { display: none; }
+/* Soften the seam between the art and the fill */
+#stage.world-banded #world { box-shadow: 0 0 48px rgba(0,0,0,0.45); }
 
 /* ===== Layer labels ====================================================== */
-.layer-lbl { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; z-index: 1; }
+.layer-lbl { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; z-index: 1;
+  left: calc(var(--world-x, 0px) + var(--s-4)); }
+/* Same heights on the art as before: 22%, 46% and 78% of the world */
+#ll-canopy     { top: calc(var(--world-y, 0px) + var(--world-h, 100vh) * 0.22); }
+#ll-understory { top: calc(var(--world-y, 0px) + var(--world-h, 100vh) * 0.46); }
+#ll-roots      { top: calc(var(--world-y, 0px) + var(--world-h, 100vh) * 0.78); }
 .layer-lbl .ll-head {
   padding: 0; border: 0; background: none; cursor: pointer;
   font: 600 var(--t-sm)/1 var(--font-heading);
@@ -686,7 +708,8 @@ button:active { filter: brightness(0.92); }
   .btn-quest { height: 40px; }
   #time-pop { top: 56px; width: min(280px, calc(100% - 16px)); }
 
-  .layer-lbl { left: var(--s-2) !important; }
+  .layer-lbl { left: calc(var(--world-x, 0px) + var(--s-2)); }
+  .layer-lbl .ll-head, .layer-lbl .ll-sub { font-size: var(--t-xs); }
 
   #hover-card { width: 240px; }
 

@@ -11,6 +11,7 @@ Clear test state first (DevTools console):
 
 ## A. Load
 - [ ] A1. The page loads with no console errors and the tree draws on the canvas.
+- [ ] A1b. The tree keeps its 4:3 shape at any window size (nothing looks stretched). Space around it shows a soft, blurred copy of the scene, and the layer labels sit on their branches.
 - [ ] A2. Agents walk in one by one; after ~10s the HUD says **7 agents**.
 - [ ] A3. The HUD shows the WEBGENTZ logo, "N agents · M working" (readable in day and night), a gear button with the current time, and a **Quest Board** button.
 - [ ] A4. While any agent needs you, the Quest Board button shows a yellow "N need you" badge on its corner. The button and the counts do not shift when it appears.
@@ -82,6 +83,12 @@ Clear test state first (DevTools console):
 - [ ] I2. `curl -X POST localhost:8765/event -d '{"session_id":"qa","event":"start","agent_type":"python"}'` makes a new animal appear.
 - [ ] I3. Stopping and restarting the server: the page reconnects by itself within a few seconds.
 - [ ] I4. Clicking a live agent and pressing **Send away** removes it without an error.
+
+## L. Canvas
+- [ ] L1. On a retina screen the pixel art is sharp, with every art pixel the same size (in DevTools: canvas width × devicePixelRatio ÷ 576 is a whole number once it is 2 or more).
+- [ ] L2. Hovering and clicking still hit the right animal, the bank and the board, with the canvas centred.
+- [ ] L3. A few leaves drift down from the canopy. With reduce motion on (J4) they are gone.
+- [ ] L4. Switch to another tab for a while and back: the tree carries on with no jump or burst of movement.
 
 ## K. Layout, type and keyboard
 - [ ] K1. At 1440×900, 1024×768 and 390×844 nothing overflows the window, and every HUD button can be reached. On a phone the gear and Quest Board are icon buttons, and the sheet, drawer and modals fill the width.
