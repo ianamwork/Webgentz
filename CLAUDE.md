@@ -31,7 +31,8 @@ Codex logs       ─▶ codex_watch.py ────┘                    └─
 - **`web/`**: `index.html` loads classic scripts (`auth.js`, `jungle-engine.js`
   canvas renderer, `demo.js` for `?demo`), then the ES module `jungle/main.js`.
   `jungle/`: `api.js` (all fetch + `/stream`), `state.js` (`S`), `render.js`
-  (HTML strings), `engine.js` (JungleEngine bridge), `actions.js` (handlers, put
+  (HTML strings applied with `morph.js`, which patches in place so scroll and
+  focus survive; give list rows a `data-key`), `engine.js` (JungleEngine bridge), `actions.js` (handlers, put
   on `window` for inline `onclick`), `main.js` (`receive(msg)`, listeners, init).
   `history.html/js` reads `/api/daily`, `/api/ledger`, `/api/timeline`.
   UI changes: run `docs/QA-jungle-ui.md`.

@@ -1,7 +1,11 @@
 // Turns state into HTML for every panel: HUD, cards, sheet, ledger, modals.
+// Panels are patched with morph() rather than replaced, so scroll, focus and
+// hover survive the frequent live updates. Give list rows and optional blocks
+// a data-key so they are matched by identity, not position.
 import { BP, KIND_LABEL, LAYER_LABEL, PALETTE, STATUS_LABEL, SVG } from './constants.js';
 import { ago, clock, dur, el, esc, fmtTok, fmtUsd, statusStyle, tokTotal } from './format.js';
 import { S } from './state.js';
+import { morph } from './morph.js';
 import { activeAgents, agentSummary, av, displayName, layerDisplayName, openLabel, providerBadge, sortedAgents } from './agents.js';
 
 export let rafId = 0;
@@ -61,7 +65,7 @@ export function renderHUD() {
   const todayCost = all.reduce((s, a) => s + (a.cost_usd || 0), 0);
   const hudStyle = 'color:#fff;background:transparent;border-color:rgba(255,255,255,0.3)';
 
-  hud.innerHTML =
+  morph(hud,
     '<div class="hud-logo">WEBGENTZ</div>' +
     '<div class="hud-right">' +
       '<div class="hud-counts bp" style="pointer-events:none">' + BP +
@@ -80,7 +84,7 @@ export function renderHUD() {
         '<span>Quest Board</span>' +
         (needsYou > 0 ? '<span class="need-badge">' + needsYou + ' need you</span>' : '') +
       '</button>' +
-    '</div>';
+    '</div>');
 }
 
 export function renderSettingsPop() {
@@ -101,7 +105,7 @@ export function renderSettingsPop() {
       (active ? 'background:var(--p-soft);color:var(--p-fg)' : 'background:transparent;color:var(--p-mute)');
   }
 
-  pop.innerHTML =
+  morph(pop,
     BP +
     '<div style="display:flex;align-items:center;justify-content:space-between">' +
       '<span style="font:600 11px/1 var(--font-heading);letter-spacing:0.1em;text-transform:uppercase;color:var(--p-mute)">Bank</span>' +
@@ -119,7 +123,7 @@ export function renderSettingsPop() {
     '<div style="display:flex;gap:6px">' +
       '<button onclick="setTimeOfDay(false)" style="' + seg(!isNight) + '">Day</button>' +
       '<button onclick="setTimeOfDay(true)"  style="' + seg(isNight)  + '">Night</button>' +
-    '</div>';
+    '</div>');
 }
 
 export function renderHoverCard() {
@@ -132,7 +136,7 @@ export function renderHoverCard() {
   card.className = 'bp';
   card.style.cssText = 'left:' + pos.x + 'px;top:' + pos.y + 'px;width:260px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:30;transform:translateY(-100%) translateX(-50%);';
   const toks = tokTotal(a);
-  card.innerHTML =
+  morph(card,
     BP +
     '<div class="hc-header">' +
       av(a, 36) +
@@ -148,7 +152,7 @@ export function renderHoverCard() {
       (toks ? '<span>' + fmtTok(toks) + ' tok</span>' : '') +
       (a.cost_usd ? '<span>' + fmtUsd(a.cost_usd) + '</span>' : '') +
       (a.started ? '<span>' + dur(a.started) + ' active</span>' : '') +
-    '</div>';
+    '</div>');
 }
 
 export function renderBankTip() {
@@ -159,7 +163,7 @@ export function renderBankTip() {
   tip.className = 'bp';
   const cost = [...S.agents.values()].reduce((s, a) => s + (a.cost_usd || 0), 0);
   tip.style.cssText = 'bottom:64px;left:50%;transform:translateX(-50%);padding:8px 12px;z-index:30;white-space:nowrap;pointer-events:none;';
-  tip.innerHTML = BP + '<span>Bank · today ' + fmtUsd(cost) + '</span>';
+  morph(tip, BP + '<span>Bank · today ' + fmtUsd(cost) + '</span>');
 }
 
 export function renderBoardTip() {
@@ -170,7 +174,7 @@ export function renderBoardTip() {
   tip.className = 'bp';
   const n = [...S.agents.values()].filter(a => a.status === 'needs_you').length;
   tip.style.cssText = 'bottom:64px;left:50%;transform:translateX(-50%);padding:8px 12px;z-index:30;white-space:nowrap;pointer-events:none;';
-  tip.innerHTML = BP + '<span>Quest board' + (n > 0 ? ' · ' + n + ' need you' : '') + '</span>';
+  morph(tip, BP + '<span>Quest board' + (n > 0 ? ' · ' + n + ' need you' : '') + '</span>');
 }
 
 export function renderAgentSheet() {
@@ -195,7 +199,7 @@ export function renderAgentSheet() {
   let needsBox = '';
   if (a.status === 'needs_you') {
     needsBox =
-      '<div class="sheet-needs-box">' +
+      '<div class="sheet-needs-box" data-key="needs">' +
         '<div class="sheet-lbl">Needs your attention</div>' +
         '<div style="font-size:14px">' + esc(openLabel(a)) + '</div>' +
         '<div style="display:flex;gap:8px;margin-top:4px">' +
@@ -209,7 +213,7 @@ export function renderAgentSheet() {
   let answerBox = '';
   if (a.answer) {
     answerBox =
-      '<div>' +
+      '<div data-key="answer">' +
         '<div class="sheet-lbl" style="margin-bottom:8px">Answer</div>' +
         '<div style="font-size:14px;line-height:1.5;background:var(--p-soft);padding:10px;border:1px solid var(--p-line)">' + esc(a.answer) + '</div>' +
       '</div>';
@@ -218,7 +222,7 @@ export function renderAgentSheet() {
   let toolsSection = '';
   if (toolEntries.length) {
     toolsSection =
-      '<div class="acc-row">' +
+      '<div class="acc-row" data-key="tools">' +
         '<button class="acc-btn" onclick="toggleSect(\'tools\')">' +
           '<span>Tools</span>' +
           '<span class="acc-hint">' + toolEntries.length + ' types ' + SVG[S.sectOpen.tools ? 'chevup' : 'chevdn'] + '</span>' +
@@ -230,7 +234,7 @@ export function renderAgentSheet() {
   let recentSection = '';
   if (recent.length) {
     recentSection =
-      '<div class="acc-row">' +
+      '<div class="acc-row" data-key="recent">' +
         '<button class="acc-btn" onclick="toggleSect(\'recent\')">' +
           '<span>Recent</span>' +
           '<span class="acc-hint">' + recent.length + ' messages ' + SVG[S.sectOpen.recent ? 'chevup' : 'chevdn'] + '</span>' +
@@ -269,12 +273,12 @@ export function renderAgentSheet() {
   const resetSwatch = '<button class="color-swatch reset-swatch' + (!currentColor ? ' active' : '') + '" onclick="customizeAgent(\'' + esc(a.id) + '\',null)" title="Default color"></button>';
   const terminalSession = a.open && (a.open.app === 'Terminal' || a.open.app === 'iTerm2') && a.open.tty;
   const lifecycleActions = a.status !== 'gone' ?
-    '<div class="sheet-actions">' +
+    '<div class="sheet-actions" data-key="actions">' +
       '<button class="btn-secondary" onclick="dismissAgent(\'' + esc(a.id) + '\')">Send away</button>' +
       (terminalSession ? '<button class="btn-secondary" onclick="closeAgentTerminal(\'' + esc(a.id) + '\')">Close terminal</button>' : '') +
     '</div>' : '';
 
-  sheet.innerHTML =
+  morph(sheet,
     BP +
     '<div class="sheet-head">' +
       '<button style="all:unset;cursor:pointer;display:contents" onclick="openAgentApp(\'' + esc(a.id) + '\')" title="Switch to this agent\'s app">' +
@@ -291,28 +295,28 @@ export function renderAgentSheet() {
       '<button class="sheet-icon-btn' + (customPanelOpen ? ' active' : '') + '" onclick="toggleCustomPanel(\'' + esc(a.id) + '\')" title="Customize sprite">' + SVG.palette + '</button>' +
       '<button class="sheet-close-btn" onclick="closeSheet()">' + SVG.x + '</button>' +
     '</div>' +
-    (customPanelOpen ? '<div class="color-picker-row">' + resetSwatch + swatches + '</div>' : '') +
-    '<div class="sheet-body">' +
-      (a.detail ? '<div style="font-size:14px">' + esc(a.detail) + '</div>' : '') +
+    (customPanelOpen ? '<div class="color-picker-row" data-key="colors">' + resetSwatch + swatches + '</div>' : '') +
+    '<div class="sheet-body" data-key="body-' + esc(a.id) + '">' +
+      (a.detail ? '<div style="font-size:14px" data-key="detail">' + esc(a.detail) + '</div>' : '') +
       lifecycleActions +
       needsBox +
       answerBox +
-      '<div class="sheet-stat-grid bp">' + BP +
+      '<div class="sheet-stat-grid bp" data-key="stats">' + BP +
         '<div class="sheet-stat"><span>Tokens</span><b>' + fmtTok(toks) + '</b></div>' +
         '<div class="sheet-stat"><span>Cost</span><b>' + fmtUsd(a.cost_usd) + '</b></div>' +
         '<div class="sheet-stat"><span>Active</span><b>' + (dur(a.started) || '—') + '</b></div>' +
       '</div>' +
-      '<div class="acc-section">' +
+      '<div class="acc-section" data-key="sections">' +
         toolsSection +
         recentSection +
-        '<div class="acc-row">' +
+        '<div class="acc-row" data-key="details">' +
           '<button class="acc-btn" onclick="toggleSect(\'details\')">' +
             '<span>Details</span>' + SVG[S.sectOpen.details ? 'chevup' : 'chevdn'] +
           '</button>' +
           sectBody('details', detailsBody) +
         '</div>' +
       '</div>' +
-    '</div>';
+    '</div>');
 }
 
 export function renderLedger() {
@@ -322,14 +326,14 @@ export function renderLedger() {
     const msgs = S.messages;
     const unread = msgs.filter(function(m){ return (m.time || m.t || 0) > S.seenT; }).length;
     const last = msgs[msgs.length - 1];
-    wrap.innerHTML =
+    morph(wrap,
       '<button class="ledger-tab-btn" onclick="openLedger()">' +
         '<span class="ltab-title">Ledger</span>' +
-        (unread > 0 ? '<span class="unread-badge">' + unread + '</span>' : '') +
+        (unread > 0 ? '<span class="unread-badge" data-key="unread">' + unread + '</span>' : '') +
         '<div class="ltab-sep"></div>' +
         '<span class="ltab-prev">' + (last ? esc(last.text || '') : 'Agent messages + roster') + '</span>' +
         SVG.chevup +
-      '</button>';
+      '</button>');
     return;
   }
 
@@ -340,15 +344,15 @@ export function renderLedger() {
     : allMessages;
 
   const chatHTML =
-    '<div class="chat-pane">' +
+    '<div class="chat-pane" data-key="chat">' +
       '<div class="chat-channels">' +
         '<div class="chat-ch-lbl">Agents</div>' +
-        '<button class="chat-ch-btn ' + (!S.ledgerChannel ? 'active' : '') + '" onclick="setChannel(null)">' +
+        '<button class="chat-ch-btn ' + (!S.ledgerChannel ? 'active' : '') + '" data-key="all" onclick="setChannel(null)">' +
           '<span>All agents</span>' +
           '<span class="chat-ch-n">' + S.messages.length + '</span>' +
         '</button>' +
         agents.map(function(a){
-          return '<button class="chat-ch-btn ' + (S.ledgerChannel === a.id ? 'active' : '') + '" onclick="setChannel(\'' + esc(a.id) + '\')">' +
+          return '<button class="chat-ch-btn ' + (S.ledgerChannel === a.id ? 'active' : '') + '" data-key="' + esc(a.id) + '" onclick="setChannel(\'' + esc(a.id) + '\')">' +
             '<span style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">' +
               av(a, 16) + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + displayName(a.name) + '</span>' +
             '</span>' +
@@ -356,12 +360,12 @@ export function renderLedger() {
           '</button>';
         }).join('') +
       '</div>' +
-      '<div class="chat-feed" id="chat-feed">' +
+      '<div class="chat-feed" id="chat-feed" data-key="feed-' + esc(S.ledgerChannel || '') + '">' +
         (filtered.length === 0
           ? '<div style="color:var(--p-mute);font-size:13px;padding:16px">No messages yet</div>'
           : filtered.map(function(m){
               const a = S.agents.get(m.agent_id);
-              return '<div class="chat-msg">' +
+              return '<div class="chat-msg" data-key="' + esc(m.agent_id + '|' + (m.time || m.t || 0)) + '">' +
                 av(a || {agent_type:'backend'}, 28) +
                 '<div class="chat-msg-body">' +
                   '<div class="chat-msg-hdr">' +
@@ -380,12 +384,12 @@ export function renderLedger() {
   const maxToks = Math.max(...[...S.agents.values()].map(tokTotal), 1);
 
   const rosterHTML =
-    '<div class="roster-pane">' +
+    '<div class="roster-pane" data-key="roster">' +
       '<div class="roster-hdr-row"><span>Agent</span><span>Working on</span><span>Progress</span><span>Status</span></div>' +
       agents.map(function(a){
         const toks = tokTotal(a);
         const pct = Math.round((toks / maxToks) * 100);
-        return '<button class="roster-row" data-opens-sheet onclick="jumpTo(\'' + esc(a.id) + '\')">' +
+        return '<button class="roster-row" data-key="' + esc(a.id) + '" data-opens-sheet onclick="jumpTo(\'' + esc(a.id) + '\')">' +
           '<div class="roster-agent-cell">' +
             av(a, 28) +
             '<div class="roster-agent-info">' +
@@ -406,7 +410,7 @@ export function renderLedger() {
       }).join('') +
     '</div>';
 
-  wrap.innerHTML =
+  morph(wrap,
     '<div class="ledger-drawer bp">' + BP +
       '<div class="ledger-hdr">' +
         '<button class="ltab-sel ' + (S.ledgerTab === 'chat' ? 'active' : '') + '" onclick="setLedgerTab(\'chat\')">' +
@@ -418,10 +422,8 @@ export function renderLedger() {
         '<button class="ledger-close-btn" onclick="closeLedger()">' + SVG.chevdn + ' Close</button>' +
       '</div>' +
       (S.ledgerTab === 'chat' ? chatHTML : rosterHTML) +
-    '</div>';
+    '</div>');
 
-  const feed = el('chat-feed');
-  if (feed) feed.scrollTop = 0;
   if (S.messages.length) S.seenT = Math.max.apply(null, S.messages.map(function(m){ return m.time||m.t||0; }));
 }
 
@@ -434,24 +436,22 @@ export function renderQuestLog() {
 
   const agents = sortedAgents();
   const activeCount = agents.filter(function(a){ return a.status !== 'sleeping' && a.status !== 'done'; }).length;
+  // morph() never touches a <textarea>'s text, so this only seeds a new one.
   const draft = panel.querySelector('#quest-note-input');
   const draftText = draft ? draft.value : '';
-  const draftFocused = draft && document.activeElement === draft;
-  const draftStart = draftFocused ? draft.selectionStart : null;
-  const draftEnd = draftFocused ? draft.selectionEnd : null;
   const updates = agents.filter(function(a){ return a.status !== 'sleeping'; }).map(function(a){
     const detail = a.activity || a.detail || agentSummary(a) || STATUS_LABEL[a.status] || 'Standing by';
-    return '<article class="board-update">' +
+    return '<article class="board-update" data-key="' + esc(a.id) + '">' +
       '<div class="board-update-hdr">' + av(a, 24) + '<b>' + displayName(a.name) + '</b>' + providerBadge(a.agent_type) + '<span class="status-tag ' + statusStyle(a.status) + '">' + esc(STATUS_LABEL[a.status] || a.status) + '</span></div>' +
       '<div>' + esc(detail) + '</div>' +
       '<div class="board-update-meta">Live from agent activity</div>' +
     '</article>';
   }).join('') || '<div class="board-empty">No agent updates yet. They’ll show up here as agents start working.</div>';
   const notes = S.boardNotes.slice().reverse().map(function(n){
-    return '<article class="board-note"><div class="board-note-meta"><b>' + esc(n.author || 'you') + '</b><time>' + esc(new Date((n.received || Date.now() / 1000) * 1000).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})) + '</time></div><div>' + esc(n.text) + '</div></article>';
+    return '<article class="board-note" data-key="' + esc(String(n.received) + '|' + n.text) + '"><div class="board-note-meta"><b>' + esc(n.author || 'you') + '</b><time>' + esc(new Date((n.received || Date.now() / 1000) * 1000).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})) + '</time></div><div>' + esc(n.text) + '</div></article>';
   }).join('') || '<div class="board-empty">Add a note or quest for your agents here.</div>';
 
-  panel.innerHTML =
+  morph(panel,
     BP +
     '<div class="modal-hdr">' +
       '<div>' +
@@ -464,16 +464,11 @@ export function renderQuestLog() {
       '<section class="quest-col board-updates"><div class="quest-col-lbl">Agent updates <span>' + activeCount + ' active</span></div>' + updates + '</section>' +
       '<section class="quest-col board-your-notes"><div class="quest-col-lbl">Your quests and notes</div>' +
         '<form class="board-compose" onsubmit="postBoardNote(event)"><label for="quest-note-input">Leave a task, question, or note</label><textarea id="quest-note-input" maxlength="500" rows="3" placeholder="What should the agents know?">' + esc(draftText) + '</textarea>' +
-          (S.boardError ? '<div class="board-error" role="alert">' + esc(S.boardError) + '</div>' : '') +
+          (S.boardError ? '<div class="board-error" data-key="error" role="alert">' + esc(S.boardError) + '</div>' : '') +
           '<button class="btn-primary" type="submit">Post to board</button></form>' +
         '<div class="board-notes">' + notes + '</div>' +
       '</section>' +
-    '</div>';
-  if (draftFocused) {
-    const nextDraft = panel.querySelector('#quest-note-input');
-    nextDraft.focus();
-    nextDraft.setSelectionRange(draftStart, draftEnd);
-  }
+    '</div>');
 }
 
 export function renderBank() {
@@ -499,7 +494,7 @@ export function renderBank() {
   }
 
   const histChart = hist.length > 0
-    ? '<div>' +
+    ? '<div data-key="chart">' +
         '<div class="bank-chart-hdr">' +
           '<div>14-day history</div>' +
           '<div class="measure-toggle">' +
@@ -520,23 +515,23 @@ export function renderBank() {
       '</div>'
     : '';
 
-  panel.innerHTML =
+  morph(panel,
     BP +
     '<div class="modal-hdr">' +
       '<div><div class="modal-title">Bank</div><div class="modal-sub">Today\'s usage and spend</div></div>' +
       '<button class="modal-close" onclick="closeModals()">' + SVG.x + '</button>' +
     '</div>' +
     '<div class="bank-body">' +
-      '<div class="bank-tiles bp">' + BP +
+      '<div class="bank-tiles bp" data-key="tiles">' + BP +
         '<div class="bank-tile"><span>Today\'s spend</span><b>' + fmtUsd(totalCost) + '</b></div>' +
         '<div class="bank-tile"><span>Tokens used</span><b>' + fmtTok(totalToks) + '</b></div>' +
         '<div class="bank-tile"><span>Tool calls</span><b>' + totalTools + '</b></div>' +
       '</div>' +
       histChart +
-      '<div>' +
+      '<div data-key="table">' +
         '<div class="bank-table-hdr"><span>Agent</span><span>Layer</span><span class="num">Tokens</span><span class="num">Cost</span></div>' +
         agents.map(function(a){
-          return '<button class="bank-row" data-opens-sheet onclick="selectAgent(\'' + esc(a.id) + '\');closeModals()">' +
+          return '<button class="bank-row" data-key="' + esc(a.id) + '" data-opens-sheet onclick="selectAgent(\'' + esc(a.id) + '\');closeModals()">' +
             '<div class="bank-agent-cell">' + av(a,20) + '<span>' + displayName(a.name) + '</span></div>' +
             '<span style="color:var(--p-mute);font-size:13px">' + esc(LAYER_LABEL[a.layer] || a.layer || '') + '</span>' +
             '<span class="num">' + fmtTok(tokTotal(a)) + '</span>' +
@@ -544,7 +539,7 @@ export function renderBank() {
           '</button>';
         }).join('') +
       '</div>' +
-    '</div>';
+    '</div>');
 }
 
 export function renderTheme() {

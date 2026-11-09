@@ -46,6 +46,7 @@ Clear test state first (DevTools console):
 - [ ] D8. **Close terminal** only appears for Terminal/iTerm2 agents with a tty (never in demo mode).
 - [ ] D9. Clicking the header calls `POST /api/open`.
 - [ ] D10. The X button, the Escape key, and clicking outside the sheet (not on the canvas) all close it.
+- [ ] D11. With Recent and Details open and the sheet scrolled down, live updates keep the scroll position and keyboard focus (Tab to a button and wait a few seconds).
 
 ## E. Ledger (bottom bar)
 - [ ] E1. Closed, it shows "Ledger", an unread count, and the latest message.
@@ -54,6 +55,7 @@ Clear test state first (DevTools console):
 - [ ] E4. The **Who's on what** tab lists every agent with job, activity, a token bar and a status tag. Clicking a row opens that agent's sheet.
 - [ ] E5. The Close button, Escape, and pressing outside the drawer all close it.
 - [ ] E6. After the drawer has been opened, the unread count resets.
+- [ ] E7. At the top of the chat feed, new messages appear at the top. Scrolled down, the messages you are reading stay put as new ones arrive.
 
 ## F. Quest Board
 - [ ] F1. The HUD button opens it over a dark backdrop, with "Agent updates" on the left and "Your quests and notes" on the right.
