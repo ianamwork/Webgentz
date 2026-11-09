@@ -310,3 +310,13 @@ class OddEventNameTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ApprovalTextTests(unittest.TestCase):
+    def test_approval_text_names_the_agent_and_its_request(self):
+        w = World()
+        w.apply(normalize_event({"session_id": "s1", "event": "needs_you", "name": "api-server", "message": "Run tests?"}))
+        self.assertEqual(w.approval_text("s1", True), "Approved api-server: Run tests?")
+        self.assertEqual(w.approval_text("s1", False), "Denied api-server: Run tests?")
+        self.assertEqual(w.approval_text("ghost", True, "demo-ant"), "Approved demo-ant")
+        self.assertEqual(w.approval_text("ghost", False), "Denied ghost")

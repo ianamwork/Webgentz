@@ -33,8 +33,8 @@ export function selectAgent(id) {
 }
 
 export function resolveAgent(id, ok) {
-  postApproval(id, ok);
   const a = S.agents.get(id);
+  postApproval(id, ok, a && a.name);
   if (a) {
     upsert(Object.assign({}, a, { status: ok ? 'working' : 'idle' }));
     syncAgents();

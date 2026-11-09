@@ -18,9 +18,10 @@ export function agentAction(path, id) {
     .catch(function(err) { window.alert(err.message || 'Could not complete the action'); });
 }
 
-// Record an approve / deny answer. Failures are ignored.
-export function postApproval(id, ok) {
-  postJSON('/api/note', { agent_id: id, approved: ok }).catch(function(){});
+// Record an approve / deny answer as a Quest Board note. Failures are ignored.
+// The name is only used when the server does not know the agent (demo mode).
+export function postApproval(id, ok, name) {
+  postJSON('/api/note', { agent_id: id, approved: ok, agent_name: name }).catch(function(){});
 }
 
 // Post a note to the quest board. Resolves to the response body; rejects on failure.

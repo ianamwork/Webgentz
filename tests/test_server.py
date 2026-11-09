@@ -298,6 +298,20 @@ class BadInputTests(unittest.TestCase):
         self.assertEqual(self.post("/api/note", b'{"text": "named", "author": "ian"}'), 200)
         self.assertEqual(server.store.notes(1)[-1]["author"], "ian")
 
+    def test_approve_and_deny_are_recorded_as_notes(self):
+        server.world.apply(server.normalize_event({"session_id": "appr-1", "event": "needs_you",
+                                                   "name": "api-server", "message": "Run tests?"}))
+        self.assertEqual(self.post("/api/note", b'{"agent_id": "appr-1", "approved": true}'), 200)
+        self.assertEqual(server.store.notes(1)[0]["text"], "Approved api-server: Run tests?")
+        self.assertEqual(self.post("/api/note", b'{"agent_id": "appr-1", "approved": false}'), 200)
+        self.assertEqual(server.store.notes(1)[0]["text"], "Denied api-server: Run tests?")
+        # An agent the server does not know (demo mode) uses the name the page sent.
+        self.assertEqual(self.post("/api/note", b'{"agent_id": "nope", "approved": true, "agent_name": "demo-ant"}'), 200)
+        self.assertEqual(server.store.notes(1)[0]["text"], "Approved demo-ant")
+        # Not an approval: still needs text.
+        self.assertEqual(self.post("/api/note", b'{"agent_id": "appr-1", "approved": "yes"}'), 400)
+        self.assertEqual(self.post("/api/note", b'{"approved": true}'), 400)
+
     def test_query_numbers_that_are_not_numbers(self):
         for path in (b"/api/daily?days=abc", b"/api/notes?limit=x", b"/api/memory?n=x",
                      b"/api/ledger?limit=1.5", b"/api/timeline?limit=ten"):

@@ -555,6 +555,17 @@ class World:
             view.update(status="sleeping", location="houses", activity="asleep")
         return view
 
+    def approval_text(self, agent_id, approved, fallback_name=None):
+        """The note recorded when you press Approve or Deny for an agent, e.g.
+        "Approved api-server-08e8: Claude needs your permission to use Bash".
+        Unknown agents (the page's demo mode) use `fallback_name` or the id."""
+        with self.lock:
+            agent = self.agents.get(agent_id)
+            name = agent["name"] if agent else (fallback_name or agent_id)
+            detail = (agent.get("detail") or "") if agent else ""
+        verb = "Approved" if approved else "Denied"
+        return f"{verb} {name}: {detail}" if detail else f"{verb} {name}"
+
     def snapshot(self, now=None):
         now = now if now is not None else time.time()
         with self.lock:

@@ -726,6 +726,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/note":
             text = body.get("text") if isinstance(body, dict) else None
             text = text.strip() if isinstance(text, str) else ""
+            # Approve / Deny on the page sends {agent_id, approved} with no text.
+            if not text and isinstance(body, dict) and isinstance(body.get("agent_id"), str) \
+                    and isinstance(body.get("approved"), bool):
+                name = body.get("agent_name") if isinstance(body.get("agent_name"), str) else None
+                text = world.approval_text(body["agent_id"], body["approved"], name)
             if not text:
                 return self._json(400, {"error": "send {\"text\": \"your note\"}"})
             author = body.get("author")
