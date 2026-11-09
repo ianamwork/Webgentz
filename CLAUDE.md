@@ -28,11 +28,13 @@ Codex logs       ─▶ codex_watch.py ────┘                    └─
 - **SSE.** `/stream` first sends `{"type":"state","agents":[...]}`, then
   `agent` / `note` messages, with a `: ping` every 15s. A background thread
   re-broadcasts stuck/sleeping agents every 30s and prunes the DB daily.
-- **`web/`**: `world.js` connects to `EventSource('/stream')` and dispatches in
-  `receive(msg)` on `msg.type`. `jungle-engine.js` is the canvas renderer,
-  `demo.js` fakes agents for `?demo`, `history.html/js` reads `/api/daily`,
-  `/api/ledger` and `/api/timeline`. Other endpoints: `/api/state`, `/api/open`,
-  `/api/close`, `/api/dismiss`, `/api/spawn`, `/api/note(s)`, `/api/memory*`.
+- **`web/`**: `index.html` loads classic scripts (`auth.js`, `jungle-engine.js`
+  canvas renderer, `demo.js` for `?demo`), then the ES module `jungle/main.js`.
+  `jungle/`: `api.js` (all fetch + `/stream`), `state.js` (`S`), `render.js`
+  (HTML strings), `engine.js` (JungleEngine bridge), `actions.js` (handlers, put
+  on `window` for inline `onclick`), `main.js` (`receive(msg)`, listeners, init).
+  `history.html/js` reads `/api/daily`, `/api/ledger`, `/api/timeline`.
+  UI changes: run `docs/QA-jungle-ui.md`.
 
 ## Run it
 

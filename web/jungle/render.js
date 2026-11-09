@@ -1,308 +1,17 @@
-/* world.js — Webgentz Jungle World UI */
-/* eslint-disable no-use-before-define */
+// Turns state into HTML for every panel: HUD, cards, sheet, ledger, modals.
+import { BP, KIND_LABEL, LAYER_LABEL, PALETTE, STATUS_LABEL, SVG } from './constants.js';
+import { ago, clock, dur, el, esc, fmtTok, fmtUsd, statusStyle, tokTotal } from './format.js';
+import { S } from './state.js';
+import { activeAgents, agentSummary, av, displayName, layerDisplayName, openLabel, providerBadge, sortedAgents } from './agents.js';
 
-// ===== Constants ==========================================================
-const BP = '<i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>';
+export let rafId = 0;
 
-const SVG = {
-  clock:   '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-  coin:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="10" x2="16" y2="10"/></svg>',
-  gear:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
-  scroll:  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
-  chevup:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>',
-  chevdn:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>',
-  x:       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-  check:   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
-  find:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-  palette: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/><circle cx="8" cy="9" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="9" r="1" fill="currentColor" stroke="none"/></svg>',
-};
-
-const KIND_LABEL = {
-  'claude-code': 'Claude Code', 'claude-api': 'Claude API', 'claude-web': 'Claude.ai',
-  'codex': 'Codex', 'openai': 'OpenAI', 'grok': 'Grok', 'gemini': 'Gemini',
-  'muse': 'Muse', 'instinct': 'Instinct', 'ollama': 'Ollama', 'lm-studio': 'LM Studio',
-  'gtm': 'GTM', 'research': 'Research', 'python': 'Python', 'infra': 'Infra',
-  'backend': 'Backend', 'frontend': 'Frontend', 'ux': 'UX', 'pm': 'PM',
-  'marketing': 'Marketing', 'sales': 'Sales',
-};
-
-const LAYER_LABEL = { canopy: 'Canopy', understory: 'Understory', roots: 'Roots' };
-
-// Provider identity: which AI platform is behind each agent_type
-const PROVIDER_INFO = {
-  'claude-code': { label: 'Claude', color: '#8b5cf6' },
-  'claude-api':  { label: 'Claude', color: '#8b5cf6' },
-  'claude-web':  { label: 'Claude', color: '#8b5cf6' },
-  'openai':      { label: 'OpenAI', color: '#10a37f' },
-  'codex':       { label: 'OpenAI', color: '#10a37f' },
-  'grok':        { label: 'Grok',   color: '#94a3b8' },
-  'gemini':      { label: 'Gemini', color: '#4285f4' },
-  'muse':        { label: 'Muse',   color: '#1877f2' },
-  'instinct':    { label: 'Instinct', color: '#f97316' },
-  'ollama':      { label: 'Local',  color: '#22c55e' },
-  'lm-studio':   { label: 'Local',  color: '#22c55e' },
-};
-
-const STATUS_ORDER = { needs_you: 0, stuck: 1, working: 2, idle: 3, sleeping: 4, done: 5 };
-
-const STATUS_LABEL = { working: 'Working', needs_you: 'Needs you', stuck: 'Stuck', idle: 'Idle', sleeping: 'Sleeping', done: 'Done' };
-
-const TOOL_MAP = {
-  Read: ['library', 'researching'], Grep: ['library', 'researching'],
-  Edit: ['workshop', 'building'], Write: ['workshop', 'building'], MultiEdit: ['workshop', 'building'],
-  Bash: ['forge', 'running commands'], Task: ['barracks', 'taking orders'],
-  MCP: ['market', 'trading'], TodoWrite: ['townhall', 'checking off'], TodoRead: ['townhall', 'checking off'],
-  WebSearch: ['library', 'researching'], WebFetch: ['library', 'researching'],
-};
-
-// ===== State ==============================================================
-const PALETTE = ['#a855f7','#d97757','#3b82f6','#22c55e','#ec4899','#ef4444','#14b8a6','#f59e0b','#84cc16','#64748b'];
-
-const S = {
-  agents: new Map(),
-  messages: [],
-  selectedId: null,
-  layerNames: JSON.parse(localStorage.getItem('webgentz.layerNames') || 'null') || {},
-  renamingLayer: null,
-  hover: null,
-  hoverPos: null,
-  bankHover: false,
-  boardHover: false,
-  ledgerOpen: false,
-  ledgerTab: 'chat',
-  ledgerChannel: null,
-  seenT: 0,
-  questsOpen: false,
-  boardNotes: [],
-  boardError: '',
-  bankOpen: false,
-  settingsOpen: true,
-  hour: 12,
-  dark: 0,
-  auto: true,
-  darkOverride: null,
-  animating: false,
-  measure: 'cost',
-  bankHistory: [],
-  sectOpen: {},
-  customs: {},
-  customPanel: null,
-};
-
-let world = null;
-
-// ===== Render throttling ==================================================
-let rafId = 0;
-function scheduleRender() {
+export function scheduleRender() {
   if (rafId) return;
   rafId = requestAnimationFrame(function() { rafId = 0; render(); });
 }
 
-// ===== Agent sync throttle ================================================
-// setAgents triggers scenery recompute; only push every 2s to stop season flashing
-let syncTimeout = 0, syncPending = false, syncLast = 0;
-function syncAgents() {
-  if (!world) return;
-  const now = Date.now();
-  if (now - syncLast > 2000) {
-    syncLast = now;
-    world.setAgents(activeAgents().map(toEngineAgent));
-    return;
-  }
-  if (!syncPending) {
-    syncPending = true;
-    syncTimeout = setTimeout(function() {
-      syncPending = false;
-      syncLast = Date.now();
-      if (world) world.setAgents(activeAgents().map(toEngineAgent));
-    }, 2000 - (now - syncLast));
-  }
-}
-
-// ===== Helpers ============================================================
-const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
-function fmtTok(n) {
-  if (!n) return '0';
-  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n/1e3).toFixed(1) + 'k';
-  return String(n);
-}
-
-function fmtUsd(v, decimals) {
-  if (v == null) return '$0.00';
-  return '$' + Number(v).toFixed(decimals != null ? decimals : 2);
-}
-
-function ago(ts) {
-  if (!ts) return '';
-  const d = Math.floor((Date.now()/1000) - ts);
-  if (d < 60) return d + 's ago';
-  if (d < 3600) return Math.floor(d/60) + 'm ago';
-  if (d < 86400) return Math.floor(d/3600) + 'h ago';
-  return Math.floor(d/86400) + 'd ago';
-}
-
-function dur(start) {
-  if (!start) return '';
-  const s = Math.floor((Date.now()/1000) - start);
-  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
-  if (h) return h + 'h ' + m + 'm';
-  if (m) return m + 'm ' + sec + 's';
-  return sec + 's';
-}
-
-function clock(h) {
-  const hh = Math.floor(h) % 24;
-  const mm = Math.floor((h % 1) * 60);
-  const ap = hh >= 12 ? 'PM' : 'AM';
-  const d = hh % 12 || 12;
-  return d + ':' + String(mm).padStart(2,'0') + ' ' + ap;
-}
-
-function tokTotal(a) {
-  const t = a.tokens || {};
-  return (t.input||0) + (t.output||0) + (t.cache_read||0) + (t.cache_write||0);
-}
-
-function statusStyle(status) {
-  const map = { working:'st-working', needs_you:'st-needs_you', stuck:'st-stuck', idle:'st-idle', sleeping:'st-sleeping', done:'st-done' };
-  return map[status] || 'st-idle';
-}
-
-function providerBadge(agent_type) {
-  const info = PROVIDER_INFO[agent_type];
-  if (!info) return '';
-  return '<span class="provider-badge" style="background:' + info.color + '1a;color:' + info.color + ';border-color:' + info.color + '44">' + esc(info.label) + '</span>';
-}
-
-function displayName(name) {
-  const m = name && name.match(/^(.+)-([0-9a-f]{4,8})$/i);
-  if (!m) return esc(name || '');
-  return esc(m[1]) + '<span class="name-suffix">-' + esc(m[2]) + '</span>';
-}
-
-function layerDisplayName(layer) {
-  return S.layerNames[layer] || LAYER_LABEL[layer] || layer;
-}
-
-function agentSummary(a) {
-  const parts = [];
-  if (a.activity) parts.push(a.activity);
-  if (a.location) parts.push('at ' + a.location);
-  return parts.join(' ') || '';
-}
-
-function av(a, size) {
-  size = size || 28;
-  if (!window.JungleEngine) return '<div style="width:' + size + 'px;height:' + size + 'px;background:var(--p-soft)"></div>';
-  const custom = a && a.id && S.customs[a.id];
-  const url = JungleEngine.avatar(a.agent_type || 'backend', custom && custom.color);
-  return '<img src="' + url + '" width="' + size + '" height="' + size + '" style="image-rendering:pixelated">';
-}
-
-function openLabel(a) {
-  if (a.status === 'needs_you') return a.detail || 'Needs your approval';
-  return '';
-}
-
-function activeAgents() {
-  return [...S.agents.values()].filter(a => a.status !== 'gone' && a.status !== 'sleeping');
-}
-
-function sortedAgents() {
-  return activeAgents().sort((a, b) =>
-    (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99)
-  );
-}
-
-function toEngineAgent(a) {
-  const tools = a.tool_counts || {};
-  let loc = 'square', act = 'idle';
-  const toolKeys = Object.keys(tools).filter(k => tools[k] > 0);
-  if (toolKeys.length) {
-    const entry = TOOL_MAP[toolKeys[toolKeys.length - 1]] || ['square', 'idle'];
-    loc = entry[0]; act = entry[1];
-  }
-  if (a.status === 'done') { loc = 'townhall'; act = 'checking off'; }
-  const recent = (a.recent || []).map(r => ({ t: r.time || r.t || 0, text: r.text || '' }));
-  const custom = S.customs[a.id];
-  return {
-    id: a.id, name: a.name, agent_type: a.agent_type,
-    layer: a.layer || 'understory',
-    status: a.status || 'idle',
-    location: a.location || loc,
-    activity: a.activity || act,
-    detail: a.detail, started: a.started, since: a.since,
-    done: a.done, answer: a.answer,
-    tokens: a.tokens || {}, cost_usd: a.cost_usd, tool_counts: tools, recent,
-    color: custom && custom.color || null,
-  };
-}
-
-// ===== Engine =============================================================
-function mountEngine() {
-  const canvas = document.getElementById('world');
-  if (!canvas || !window.JungleEngine) return;
-  if (world) { world.destroy(); world = null; }
-  world = JungleEngine.mount(canvas, {
-    hour: S.auto ? autoHour() : S.hour,
-    selectedId: function() { return S.selectedId; },
-    onHover: function(agent, pos, place) {
-      S.hover = agent;
-      S.hoverPos = pos;
-      S.bankHover = place === 'bank';
-      S.boardHover = place === 'board';
-      // Only update the lightweight floating elements, not the whole page
-      renderHoverCard();
-      renderBankTip();
-      renderBoardTip();
-    },
-    onClick: function(agent) {
-      if (agent) {
-        S.selectedId = agent.id;
-        S.hover = null;
-        renderHoverCard();
-        fetch('/api/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: agent.id }) }).catch(function(){});
-      } else {
-        S.selectedId = null;
-      }
-      renderAgentSheet();
-    },
-    onBank: function() {
-      closeHudPopups();
-      S.bankOpen = !S.bankOpen;
-      S.questsOpen = false;
-      el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
-      renderQuestLog(); renderBank();
-    },
-    onBoard: function() {
-      closeHudPopups();
-      S.questsOpen = !S.questsOpen;
-      S.bankOpen = false;
-      el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
-      renderQuestLog(); renderBank();
-    },
-    onHour: function(hour, dark, animating) {
-      var prevDark = S.dark;
-      S.hour = hour;
-      S.dark = dark;
-      S.animating = animating;
-      // Update clock text in-place — don't rebuild the whole HUD on every frame
-      var ct = document.getElementById('hud-clock');
-      if (ct) ct.textContent = clock(hour);
-      // Only flip theme when the day/night threshold actually crosses
-      if ((dark > 0.5) !== (prevDark > 0.5)) renderTheme();
-      renderSettingsPop();
-    },
-  });
-  syncAgents();
-}
-
-// ===== Render helpers =====================================================
-function el(id) { return document.getElementById(id); }
-
-function renderLayerLabels() {
+export function renderLayerLabels() {
   const counts = { canopy: 0, understory: 0, roots: 0 };
   for (const a of activeAgents()) {
     const l = a.layer || 'understory';
@@ -323,7 +32,7 @@ function renderLayerLabels() {
       if (!div.querySelector('.ll-rename-input')) {
         div.innerHTML = '<input class="ll-rename-input" value="' + esc(name) + '" maxlength="24" ' +
           'onblur="saveLayerName(\'' + layer + '\',this.value)" ' +
-          'onkeydown="if(event.key===\'Enter\')this.blur();if(event.key===\'Escape\'){S.renamingLayer=null;renderLayerLabels();}" ' +
+          'onkeydown="if(event.key===\'Enter\')this.blur();if(event.key===\'Escape\')cancelRenameLayer();" ' +
           'style="pointer-events:auto" />';
         const input = div.querySelector('input');
         if (input) { input.focus(); input.select(); }
@@ -339,7 +48,7 @@ function renderLayerLabels() {
   }
 }
 
-function renderHUD() {
+export function renderHUD() {
   const hud = el('hud');
   if (!hud) return;
   const all = activeAgents();
@@ -371,7 +80,7 @@ function renderHUD() {
     '</div>';
 }
 
-function renderSettingsPop() {
+export function renderSettingsPop() {
   const pop = el('time-pop');
   if (!pop) return;
   if (!S.settingsOpen) { pop.hidden = true; return; }
@@ -410,7 +119,7 @@ function renderSettingsPop() {
     '</div>';
 }
 
-function renderHoverCard() {
+export function renderHoverCard() {
   const card = el('hover-card');
   if (!card) return;
   if (!S.hover || !S.hoverPos) { card.hidden = true; return; }
@@ -439,7 +148,7 @@ function renderHoverCard() {
     '</div>';
 }
 
-function renderBankTip() {
+export function renderBankTip() {
   const tip = el('bank-tip');
   if (!tip) return;
   if (!S.bankHover) { tip.hidden = true; return; }
@@ -450,7 +159,7 @@ function renderBankTip() {
   tip.innerHTML = BP + '<span>Bank · today ' + fmtUsd(cost) + '</span>';
 }
 
-function renderBoardTip() {
+export function renderBoardTip() {
   const tip = el('board-tip');
   if (!tip) return;
   if (!S.boardHover) { tip.hidden = true; return; }
@@ -461,7 +170,7 @@ function renderBoardTip() {
   tip.innerHTML = BP + '<span>Quest board' + (n > 0 ? ' · ' + n + ' need you' : '') + '</span>';
 }
 
-function renderAgentSheet() {
+export function renderAgentSheet() {
   const sheet = el('agent-sheet');
   if (!sheet) return;
   if (!S.selectedId) { sheet.hidden = true; return; }
@@ -603,7 +312,7 @@ function renderAgentSheet() {
     '</div>';
 }
 
-function renderLedger() {
+export function renderLedger() {
   const wrap = el('ledger-wrap');
   if (!wrap) return;
   if (!S.ledgerOpen) {
@@ -713,7 +422,7 @@ function renderLedger() {
   if (S.messages.length) S.seenT = Math.max.apply(null, S.messages.map(function(m){ return m.time||m.t||0; }));
 }
 
-function renderQuestLog() {
+export function renderQuestLog() {
   const panel = el('quest-panel');
   if (!panel) return;
   if (!S.questsOpen) { panel.hidden = true; return; }
@@ -764,7 +473,7 @@ function renderQuestLog() {
   }
 }
 
-function renderBank() {
+export function renderBank() {
   const panel = el('bank-panel');
   if (!panel) return;
   if (!S.bankOpen) { panel.hidden = true; return; }
@@ -833,14 +542,14 @@ function renderBank() {
     '</div>';
 }
 
-function renderTheme() {
+export function renderTheme() {
   const stage = el('stage');
   if (!stage) return;
   const isDark = S.darkOverride !== null ? S.darkOverride : S.dark > 0.5;
   stage.setAttribute('data-theme', isDark ? 'dusk' : 'day');
 }
 
-function render() {
+export function render() {
   renderLayerLabels();
   renderHUD();
   renderSettingsPop();
@@ -852,309 +561,4 @@ function render() {
   renderQuestLog();
   renderBank();
   renderTheme();
-}
-
-// ===== Data layer =========================================================
-function upsert(a) {
-  const existing = S.agents.get(a.id) || {};
-  const merged = Object.assign({}, existing, a);
-  S.agents.set(a.id, merged);
-  const recent = a.recent || [];
-  for (const r of recent) {
-    const t = r.time || r.t || 0;
-    if (!S.messages.find(function(m){ return m.agent_id === a.id && (m.time || m.t) === t; })) {
-      S.messages.push({ agent_id: a.id, agent_name: a.name, time: t, text: r.text || '', kind: r.kind || '' });
-    }
-  }
-  S.messages.sort(function(a,b){ return (a.time||a.t||0) - (b.time||b.t||0); });
-  if (S.messages.length > 1000) S.messages = S.messages.slice(-500);
-}
-
-function receive(msg) {
-  if (msg.type === 'state') {
-    for (const a of (msg.agents || [])) upsert(a);
-  } else if (msg.type === 'agent') {
-    if (msg.agent) upsert(msg.agent);
-  } else if (msg.type === 'note' && msg.note) {
-    if (!S.boardNotes.some(function(n){ return n.received === msg.note.received && n.text === msg.note.text; })) S.boardNotes.push(msg.note);
-  }
-  syncAgents();
-  scheduleRender();
-}
-
-function loadBoardNotes() {
-  fetch('/api/notes?limit=100').then(function(r){ return r.ok ? r.json() : null; }).then(function(data){
-    if (!data || !Array.isArray(data.notes)) return;
-    S.boardNotes = data.notes;
-    if (S.questsOpen) renderQuestLog();
-  }).catch(function(){});
-}
-
-function loadHistory() {
-  fetch('/api/daily?days=14')
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(data){
-      if (!data || !data.rows) return;
-      const byDay = {};
-      for (const row of data.rows) {
-        if (!byDay[row.day]) byDay[row.day] = { day: row.day, cost: 0, tokens: 0 };
-        byDay[row.day].cost += row.cost_usd || 0;
-        byDay[row.day].tokens += (row.input||0) + (row.output||0) + (row.cache_read||0) + (row.cache_write||0);
-      }
-      S.bankHistory = Object.values(byDay).sort(function(a,b){ return a.day < b.day ? -1 : 1; }).slice(-14);
-      renderBank();
-    })
-    .catch(function(){});
-}
-
-function connect() {
-  if (new URLSearchParams(location.search).has('demo') && typeof WebgentzDemo !== 'undefined') {
-    WebgentzDemo.start(receive);
-    return;
-  }
-  const es = new EventSource(typeof webgentzStreamUrl === 'function' ? webgentzStreamUrl() : '/stream');
-  window.__es = es;
-  es.onmessage = function(e) {
-    try { receive(JSON.parse(e.data)); } catch(ex) {}
-  };
-  es.onerror = function() {
-    es.close();
-    window.__es = null;
-    setTimeout(connect, 3000);
-  };
-}
-
-// ===== Actions (called from inline onclick) ================================
-function openAgentApp(id) {
-  fetch('/api/open', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) }).catch(function(){});
-}
-
-function agentAction(path, id) {
-  return fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) })
-    .then(function(r) { return r.json().then(function(body) { if (!r.ok) throw new Error(body.error || 'Action failed'); return body; }); })
-    .catch(function(err) { window.alert(err.message || 'Could not complete the action'); });
-}
-
-function dismissAgent(id) {
-  agentAction('/api/dismiss', id).then(function(result) { if (result) closeSheet(); });
-}
-
-function closeAgentTerminal(id) {
-  if (!window.confirm('Close this agent’s terminal session?')) return;
-  agentAction('/api/close', id).then(function(result) { if (result) closeSheet(); });
-}
-
-function jumpTo(id) {
-  S.selectedId = id;
-  syncAgents();
-  render();
-}
-
-function selectAgent(id) {
-  S.selectedId = id;
-  render();
-}
-
-function resolveAgent(id, ok) {
-  fetch('/api/note', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ agent_id: id, approved: ok }),
-  }).catch(function(){});
-  const a = S.agents.get(id);
-  if (a) {
-    upsert(Object.assign({}, a, { status: ok ? 'working' : 'idle' }));
-    syncAgents();
-    render();
-  }
-}
-
-function postBoardNote(event) {
-  event.preventDefault();
-  const input = el('quest-note-input');
-  const text = (input && input.value || '').trim();
-  if (!text) return;
-  S.boardError = '';
-  fetch('/api/note', {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text: text, author: 'you' }),
-  }).then(function(response){
-    if (!response.ok) throw new Error('Could not post. Please try again.');
-    return response.json();
-  }).then(function(data){
-    if (data.note && !S.boardNotes.some(function(n){ return n.received === data.note.received && n.text === data.note.text; })) S.boardNotes.push(data.note);
-    const draft = el('quest-note-input');
-    if (draft) draft.value = '';
-    render();
-  }).catch(function(){ S.boardError = 'Could not post to the board. Check that Webgentz is connected and try again.'; render(); });
-}
-
-function closeSheet() { S.selectedId = null; S.customPanel = null; render(); }
-function toggleCustomPanel(id) { S.customPanel = S.customPanel === id ? null : id; renderAgentSheet(); }
-function closeHudPopups() { S.ledgerOpen = false; }
-function openLedger()  { closeHudPopups(); S.ledgerOpen = true; render(); }
-function closeLedger() { S.ledgerOpen = false; render(); }
-function setLedgerTab(t){ S.ledgerTab = t; render(); }
-function setChannel(id) { S.ledgerChannel = id; render(); }
-function openQuests()  { closeHudPopups(); S.questsOpen = true; S.bankOpen = false; el('modal-back').hidden = false; render(); }
-function openBank()    { closeHudPopups(); S.settingsOpen = false; S.bankOpen = true; S.questsOpen = false; el('modal-back').hidden = false; render(); }
-function closeModals() { S.questsOpen = false; S.bankOpen = false; el('modal-back').hidden = true; render(); }
-function toggleSettings(){
-  S.settingsOpen = !S.settingsOpen;
-  renderSettingsPop();
-}
-
-function startRenameLayer(layer) {
-  S.renamingLayer = layer;
-  renderLayerLabels();
-}
-
-function saveLayerName(layer, value) {
-  S.renamingLayer = null;
-  const name = (value || '').trim();
-  if (name && name !== LAYER_LABEL[layer]) {
-    S.layerNames[layer] = name;
-  } else {
-    delete S.layerNames[layer];
-  }
-  localStorage.setItem('webgentz.layerNames', JSON.stringify(S.layerNames));
-  requestAnimationFrame(render);
-}
-function setTimeOfDay(night) { S.auto = false; if (world) world.setHour(night ? 22 : 12); }
-function setDarkOverride(dark) { S.darkOverride = dark; renderSettingsPop(); renderTheme(); }
-function toggleSect(k) { S.sectOpen[k] = !S.sectOpen[k]; renderAgentSheet(); }
-function setMeasure(m) { S.measure = m; renderBank(); }
-
-// ===== Cursor tracking + hover stale check ================================
-let _cx = -1, _cy = -1;
-(function() {
-  const canvas = document.getElementById('world');
-  if (!canvas) return;
-  function clearCanvasHover() {
-    if (!S.hover && !S.bankHover && !S.boardHover) return;
-    S.hover = null; S.hoverPos = null; S.bankHover = false; S.boardHover = false;
-    renderHoverCard(); renderBankTip(); renderBoardTip();
-  }
-  canvas.addEventListener('mousemove', function(e) {
-    const r = canvas.getBoundingClientRect();
-    _cx = (e.clientX - r.left) / r.width;
-    _cy = (e.clientY - r.top) / r.height;
-  });
-  canvas.addEventListener('mouseleave', function() { _cx = -1; _cy = -1; clearCanvasHover(); });
-  canvas.addEventListener('pointerleave', clearCanvasHover);
-  document.addEventListener('pointermove', function(e) {
-    if (!canvas.contains(e.target)) clearCanvasHover();
-  }, true);
-})();
-(function checkStaleHover() {
-  if (S.hover && world && _cx >= 0) {
-    const pos = world.positions()[S.hover.id];
-    if (!pos) { S.hover = null; S.hoverPos = null; renderHoverCard(); }
-    else {
-      const dx = (pos.x - _cx) * JungleEngine.W;
-      const dy = (pos.y - _cy) * JungleEngine.H;
-      if (Math.hypot(dx, dy) > 22) { S.hover = null; S.hoverPos = null; renderHoverCard(); }
-    }
-  }
-  requestAnimationFrame(checkStaleHover);
-})();
-
-// ===== Sprite customization ===============================================
-function customizeAgent(id, color) {
-  if (color) {
-    S.customs[id] = Object.assign({}, S.customs[id] || {}, { color });
-  } else {
-    if (S.customs[id]) delete S.customs[id].color;
-    if (S.customs[id] && !Object.keys(S.customs[id]).length) delete S.customs[id];
-  }
-  try { localStorage.setItem('wg-customs', JSON.stringify(S.customs)); } catch(e) {}
-  syncAgents();
-  renderAgentSheet();
-}
-
-// ===== Real-time clock ====================================================
-function autoHour() { const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
-function applyRealTime(animate) {
-  if (!world) return;
-  if (animate) world.animateTo(autoHour(), 2);
-  else world.setHour(autoHour());
-}
-// Advance time every minute when in auto mode
-setInterval(function() { if (S.auto && world && !S.animating) world.animateTo(autoHour(), 2); }, 60000);
-
-const mq = window.matchMedia('(prefers-color-scheme: dark)');
-
-// ===== Sleeping watchdog ==================================================
-// Only promote idle → sleeping (conservative; never override working/stuck)
-setInterval(function() {
-  let changed = false;
-  const now = Date.now() / 1000;
-  for (const [id, a] of S.agents) {
-    if (a.status === 'idle' && a.since && (now - a.since) > 900) {
-      S.agents.set(id, Object.assign({}, a, { status: 'sleeping' }));
-      changed = true;
-    }
-  }
-  if (changed) { syncAgents(); scheduleRender(); }
-}, 30000);
-
-// ===== Close modals on backdrop ==========================================
-el('modal-back').addEventListener('click', closeModals);
-
-// Dismiss transient HUD panels as soon as the pointer goes elsewhere. Use
-// capture-phase pointerdown so frequent live updates cannot detach the target
-// before its click event is delivered.
-document.addEventListener('pointerdown', function(e) {
-  const target = e.target;
-  const ledger = el('ledger-wrap');
-  const settingsPop = el('time-pop');
-  const settingsBtn = el('btn-settings');
-
-  if (S.settingsOpen && settingsPop && !settingsPop.contains(target) && settingsBtn && !settingsBtn.contains(target)) {
-    S.settingsOpen = false;
-    renderSettingsPop();
-  }
-  if (S.ledgerOpen && !ledger.contains(target)) {
-    S.ledgerOpen = false;
-    renderLedger();
-  }
-}, true);
-
-// ===== Escape key ========================================================
-document.addEventListener('keydown', function(e) {
-  if (e.key !== 'Escape') return;
-  if (S.selectedId) { closeSheet(); return; }
-  if (S.questsOpen || S.bankOpen) { closeModals(); return; }
-  if (S.ledgerOpen) closeLedger();
-});
-
-// ===== Click outside agent sheet =========================================
-document.addEventListener('click', function(e) {
-  if (!S.selectedId) return;
-  const sheet = el('agent-sheet');
-  if (!sheet || sheet.hidden) return;
-  const canvas = document.getElementById('world');
-  // Canvas clicks are handled by the engine (onClick(null) closes sheet)
-  if (canvas && canvas.contains(e.target)) return;
-  // Use composedPath so re-renders during the event don't orphan e.target
-  const path = e.composedPath ? e.composedPath() : [];
-  if (sheet.contains(e.target) || path.indexOf(sheet) !== -1) return;
-  closeSheet();
-});
-
-// ===== Init ===============================================================
-function init() {
-  try { S.customs = JSON.parse(localStorage.getItem('wg-customs') || '{}'); } catch(e) {}
-  mountEngine();
-  if (world) { if (S.auto) applyRealTime(false); else world.setHour(mq.matches ? 22 : 12); }
-  connect();
-  loadHistory();
-  loadBoardNotes();
-  render();
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
 }
