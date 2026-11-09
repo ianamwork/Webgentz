@@ -167,7 +167,8 @@ def normalize_event(raw, now=None):
     if not session or not isinstance(session, (str, int)):
         raise EventError("'session_id' is required: a string that is the same for every event from one agent run")
     name = raw.get("event") or raw.get("hook_event_name")
-    name = ALIASES.get(name, name)
+    if isinstance(name, str):  # a list or object here must get a 400, not a crash
+        name = ALIASES.get(name, name)
     if name not in EVENT_NAMES:
         raise EventError(f"'event' must be one of: {', '.join(EVENT_NAMES)} (got {name!r})")
     version = raw.get("v", EVENT_VERSION)

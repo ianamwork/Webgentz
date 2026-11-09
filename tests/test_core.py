@@ -300,5 +300,13 @@ class HookTests(unittest.TestCase):
         self.assertEqual(e["agent_type"], "claude-code")
 
 
+class OddEventNameTests(unittest.TestCase):
+    def test_a_list_or_object_as_the_event_name_is_an_event_error(self):
+        for raw in ({"session_id": "a", "event": ["start"]},
+                    {"session_id": "a", "hook_event_name": {"x": 1}}):
+            with self.assertRaises(EventError):
+                normalize_event(raw)
+
+
 if __name__ == "__main__":
     unittest.main()
