@@ -262,6 +262,8 @@ class Notifier:
     def __init__(self, enabled):
         self.enabled = enabled
         self.flagged = set()  # (agent id, status) pairs already announced
+        # check() runs on request threads and the background thread at once.
+        self.lock = threading.Lock()
 
     def _show(self, title, message):
         if not self.enabled:
@@ -277,6 +279,10 @@ class Notifier:
 
     def check(self, agent):
         """Announce an agent once each time it needs you, gets stuck, or finishes a long task."""
+        with self.lock:
+            self._check(agent)
+
+    def _check(self, agent):
         key = agent["id"]
         status = agent["status"]
         finished, started = agent.get("finished_at"), agent.get("task_started")
@@ -552,6 +558,11 @@ class Broadcaster:
         with self.lock:
             self.clients.discard(q)
 
+    def is_subscribed(self, q):
+        """False once send() dropped this client for falling too far behind."""
+        with self.lock:
+            return q in self.clients
+
     def send(self, message):
         with self.lock:
             for q in list(self.clients):
@@ -593,13 +604,21 @@ def watch_for_quiet_agents():
     last_prune = time.time()
     while True:
         time.sleep(30)
-        for agent in world.snapshot():
-            notifier.check(agent)
-            if agent["status"] in ("stuck", "sleeping"):
-                broadcaster.send({"type": "agent", "agent": agent})
-        if time.time() - last_prune > 86400:
-            store.prune(KEEP_DAYS)
-            last_prune = time.time()
+        # One bad pass (a locked database, say) must not stop the watcher for good.
+        try:
+            for agent in world.snapshot():
+                notifier.check(agent)
+                if agent["status"] in ("stuck", "sleeping"):
+                    broadcaster.send({"type": "agent", "agent": agent})
+            if time.time() - last_prune > 86400:
+                last_prune = time.time()
+                store.prune(KEEP_DAYS)
+        except Exception as exc:  # noqa: BLE001 - keep the background thread alive
+            print(f"Webgentz watcher hit an error and will try again: {exc!r}", file=sys.stderr)
+
+
+class _BadQuery(ValueError):
+    """A query-string value the API cannot use; answered with HTTP 400."""
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -675,12 +694,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._unauthorized()
         if self._from_other_website():
             return self._json(403, {"error": "requests from other websites are not allowed"})
-        length = int(self.headers.get("Content-Length") or 0)
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if length < 0:
+            return self._json(400, {"error": "Content-Length must be a number of 0 or more"})
         if length > MAX_EVENT_BYTES:
             return self._json(413, {"error": "event is too large"})
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
-        except json.JSONDecodeError:
+        except ValueError:  # bad JSON, or bytes that are not UTF-8
             return self._json(400, {"error": "the body is not valid JSON"})
         if path == "/api/open":
             if not isinstance(body, dict) or not isinstance(body.get("id"), str):
@@ -699,10 +723,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(400, {"error": "send {\"cwd\": \"/path/to/project\"}"})
             return self._json(*spawn_session(body["cwd"]))
         if path == "/api/note":
-            text = (body.get("text") or "").strip() if isinstance(body, dict) else ""
+            text = body.get("text") if isinstance(body, dict) else None
+            text = text.strip() if isinstance(text, str) else ""
             if not text:
                 return self._json(400, {"error": "send {\"text\": \"your note\"}"})
-            author = (body.get("author") or "you")[:50]
+            author = body.get("author")
+            author = (author if isinstance(author, str) and author else "you")[:50]
             note = store.add_note(text[:500], author)
             broadcaster.send({"type": "note", "note": note})
             return self._json(200, {"ok": True, "note": note})
@@ -713,6 +739,22 @@ class Handler(BaseHTTPRequestHandler):
         self._json(200, {"ok": True})
 
     def do_GET(self):
+        try:
+            return self._get()
+        except _BadQuery as exc:
+            return self._json(400, {"error": str(exc)})
+
+    @staticmethod
+    def _number(query, name, default, lowest, highest):
+        """A whole-number query parameter, clamped to [lowest, highest]."""
+        raw = (query.get(name) or [str(default)])[0]
+        try:
+            value = int(raw)
+        except ValueError:
+            raise _BadQuery(f"'{name}' must be a whole number (got {raw!r})") from None
+        return max(lowest, min(highest, value))
+
+    def _get(self):
         url = urlparse(self.path)
         query = parse_qs(url.query)
         if (url.path == "/stream" or url.path.startswith("/api/")) and not self._authorized():
@@ -720,13 +762,13 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/state":
             return self._json(200, {"agents": world.snapshot(), "now": time.time()})
         if url.path == "/api/daily":
-            days = max(1, min(366, int((query.get("days") or ["14"])[0])))
+            days = self._number(query, "days", 14, 1, 366)
             return self._json(200, {"days": days, "rows": store.daily(days)})
         if url.path == "/api/notes":
-            limit = max(1, min(500, int((query.get("limit") or ["100"])[0])))
+            limit = self._number(query, "limit", 100, 1, 500)
             return self._json(200, {"notes": store.notes(limit)})
         if url.path == "/api/memory":
-            n = max(1, min(200, int((query.get("n") or ["20"])[0])))
+            n = self._number(query, "n", 20, 1, 200)
             project = (query.get("project") or [None])[0]
             q = (query.get("q") or [None])[0]
             vault = memory.vault or ""
@@ -736,12 +778,12 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/memory/context":
             return self._json(200, {"vault": memory.vault or "", "pages": memory.context_pages()})
         if url.path == "/api/ledger":
-            limit = max(1, min(500, int((query.get("limit") or ["120"])[0])))
+            limit = self._number(query, "limit", 120, 1, 500)
             names = {a["id"]: a["name"] for a in world.snapshot()}
             return self._json(200, {"entries": store.ledger(limit, names)})
         if url.path == "/api/timeline":
             session = (query.get("session") or [None])[0]
-            limit = max(1, min(1000, int((query.get("limit") or ["200"])[0])))
+            limit = self._number(query, "limit", 200, 1, 1000)
             return self._json(200, {"events": store.timeline(session, limit)})
         if url.path == "/stream":
             return self._stream()
@@ -756,14 +798,17 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.wfile.write(f"data: {json.dumps({'type': 'state', 'agents': world.snapshot()})}\n\n".encode())
             self.wfile.flush()
-            while True:
+            # A tab that fell too far behind is dropped by the broadcaster. Close
+            # its stream so the page reconnects and gets a fresh state message,
+            # instead of staying open on pings with no more updates.
+            while broadcaster.is_subscribed(q):
                 try:
                     message = q.get(timeout=15)
                     self.wfile.write(f"data: {json.dumps(message)}\n\n".encode())
                 except queue.Empty:
                     self.wfile.write(b": ping\n\n")  # keeps the connection open
                 self.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError):
+        except OSError:  # the tab went away (broken pipe, reset, aborted)
             pass
         finally:
             broadcaster.unsubscribe(q)
@@ -771,8 +816,12 @@ class Handler(BaseHTTPRequestHandler):
     def _static(self, path):
         if path == "/":
             path = "/index.html"
-        target = (WEB_DIR / path.lstrip("/")).resolve()
-        if WEB_DIR not in target.parents or not target.is_file():
+        try:
+            target = (WEB_DIR / path.lstrip("/")).resolve()
+            found = WEB_DIR in target.parents and target.is_file()
+        except (OSError, ValueError):  # a name too long, or with a null byte
+            found = False
+        if not found:
             return self._json(404, {"error": "not found"})
         body = target.read_bytes()
         self.send_response(200)

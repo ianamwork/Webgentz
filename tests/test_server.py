@@ -3,12 +3,16 @@
 Run them with:  python3 -m unittest discover tests
 """
 
+import io
 import json
 import os
+import socket
+import sqlite3
 import sys
 import tempfile
 import threading
 import time
+import types
 import unittest
 import urllib.error
 import urllib.request
@@ -228,6 +232,124 @@ class TokenTests(unittest.TestCase):
         stray.start()
         webgentz_client._get_sender().flush()
         self.assertNotIn("client-no-token", [a["id"] for a in server.world.snapshot()])
+
+
+class BadInputTests(unittest.TestCase):
+    """Odd or hostile requests get a clear 4xx answer, never a dropped connection."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+        cls.port = cls.httpd.server_address[1]
+        threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.httpd.shutdown()
+        cls.httpd.server_close()
+
+    def raw(self, request):
+        """Send raw bytes and return the HTTP status code (None if the server hung up)."""
+        with socket.create_connection(("127.0.0.1", self.port), timeout=5) as s:
+            s.sendall(request)
+            first = s.makefile("rb").readline()
+        parts = first.split()
+        return int(parts[1]) if len(parts) > 1 else None
+
+    def post(self, path, body):
+        return self.raw(b"POST " + path.encode() + b" HTTP/1.1\r\nHost: x\r\nContent-Length: "
+                        + str(len(body)).encode() + b"\r\n\r\n" + body)
+
+    def get(self, path):
+        return self.raw(b"GET " + path + b" HTTP/1.1\r\nHost: x\r\n\r\n")
+
+    def test_bad_content_length(self):
+        self.assertEqual(self.raw(b"POST /event HTTP/1.1\r\nHost: x\r\nContent-Length: abc\r\n\r\n{}"), 400)
+        # A negative length used to wait forever for the client to hang up.
+        self.assertEqual(self.raw(b"POST /event HTTP/1.1\r\nHost: x\r\nContent-Length: -1\r\n\r\n{}"), 400)
+
+    def test_body_that_is_not_utf8(self):
+        self.assertEqual(self.post("/event", b'{"session_id": "\xff\xfe"}'), 400)
+
+    def test_event_name_that_is_a_list_or_object(self):
+        self.assertEqual(self.post("/event", b'{"session_id": "a", "event": ["start"]}'), 400)
+        self.assertEqual(self.post("/event", b'{"session_id": "a", "hook_event_name": {}}'), 400)
+
+    def test_note_with_wrong_types(self):
+        self.assertEqual(self.post("/api/note", b'{"text": 5}'), 400)
+        self.assertEqual(self.post("/api/note", b'{"text": "typed author", "author": 5}'), 200)
+        self.assertEqual(server.store.notes(1)[-1]["author"], "you")
+        self.assertEqual(self.post("/api/note", b'{"text": "named", "author": "ian"}'), 200)
+        self.assertEqual(server.store.notes(1)[-1]["author"], "ian")
+
+    def test_query_numbers_that_are_not_numbers(self):
+        for path in (b"/api/daily?days=abc", b"/api/notes?limit=x", b"/api/memory?n=x",
+                     b"/api/ledger?limit=1.5", b"/api/timeline?limit=ten"):
+            self.assertEqual(self.get(path), 400, path)
+        # Numbers out of range are still clamped, as before.
+        self.assertEqual(self.get(b"/api/daily?days=-3"), 200)
+        self.assertEqual(self.get(b"/api/timeline?limit=99999"), 200)
+
+    def test_static_paths_that_cannot_be_files(self):
+        self.assertEqual(self.get(b"/" + b"a" * 5000), 404)  # name too long for the OS
+        self.assertEqual(self.get(b"/a\x00b"), 404)
+        self.assertEqual(self.get(b"/../server.py"), 404)
+        self.assertEqual(self.get(b"/index.html"), 200)
+
+    def test_stream_closes_when_the_tab_falls_too_far_behind(self):
+        with socket.create_connection(("127.0.0.1", self.port), timeout=5) as s:
+            s.sendall(b"GET /stream HTTP/1.1\r\nHost: x\r\n\r\n")
+            f = s.makefile("rb")
+            while not f.readline().startswith(b"data: "):
+                pass  # headers, then the first state message
+            # Send faster than this tab reads, until the broadcaster drops it.
+            for _ in range(200000):
+                with server.broadcaster.lock:
+                    if not server.broadcaster.clients:
+                        break
+                server.broadcaster.send({"type": "filler"})
+            deadline = time.time() + 5
+            while time.time() < deadline and f.readline():
+                pass
+            self.assertLess(time.time(), deadline, "stream stayed open after the tab was dropped")
+
+
+class BackgroundThreadTests(unittest.TestCase):
+    def test_watcher_survives_an_error(self):
+        class Stop(BaseException):
+            pass
+
+        fake_time = types.SimpleNamespace(sleep=mock.Mock(side_effect=[None, None, Stop()]), time=time.time)
+        snapshot = mock.Mock(side_effect=[sqlite3.OperationalError("database is locked"), []])
+        with mock.patch.object(server, "time", fake_time), \
+                mock.patch.object(server.world, "snapshot", snapshot), \
+                mock.patch("sys.stderr", io.StringIO()):
+            with self.assertRaises(Stop):
+                server.watch_for_quiet_agents()
+        self.assertEqual(snapshot.call_count, 2)  # kept going after the first pass failed
+
+    def test_notifier_is_safe_across_threads(self):
+        n = server.Notifier(False)
+        errors = []
+
+        def run(status):
+            try:
+                for i in range(20000):
+                    n.check({"id": f"{status}{i}", "name": "x", "status": status})
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        old = sys.getswitchinterval()
+        sys.setswitchinterval(1e-6)
+        try:
+            threads = [threading.Thread(target=run, args=(s,)) for s in ("needs_you", "working")]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        finally:
+            sys.setswitchinterval(old)
+        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":
