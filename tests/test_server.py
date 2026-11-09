@@ -110,6 +110,22 @@ class ServerTests(unittest.TestCase):
             urllib.request.urlopen(req)
         self.assertEqual(ctx.exception.code, 403)
 
+    def test_tracker_origins_may_only_post_events(self):
+        def status(path, origin, body):
+            req = urllib.request.Request(self.base + path, data=json.dumps(body).encode(),
+                                         headers={"Content-Type": "application/json", "Origin": origin})
+            try:
+                with urllib.request.urlopen(req) as r:
+                    return r.status
+            except urllib.error.HTTPError as e:
+                e.close()
+                return e.code
+        event = {"session_id": "tracker-origin", "event": "start", "agent_type": "python"}
+        for origin in ("https://claude.ai", "chrome-extension://abcdef"):
+            self.assertEqual(status("/event", origin, event), 200, origin)
+            for path in ("/api/open", "/api/close", "/api/dismiss", "/api/spawn", "/api/note"):
+                self.assertEqual(status(path, origin, {"id": "tracker-origin", "text": "hi"}), 403, (origin, path))
+
     def test_open_command_for_each_kind_of_place(self):
         cmd, label = server.open_command({"open": {"app": "Terminal", "tty": "/dev/ttys003"}}, "darwin")
         self.assertEqual((cmd[0], cmd[-1], label), ("osascript", "/dev/ttys003", "Terminal"))

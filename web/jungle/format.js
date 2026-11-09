@@ -4,8 +4,10 @@ export const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;
 
 export function fmtTok(n) {
   if (!n) return '0';
-  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n/1e3).toFixed(1) + 'k';
+  const sign = n < 0 ? '-' : '', a = Math.abs(n);
+  // 999,950 rounds to "1000.0k", so anything that would show as 1000k is M.
+  if (a >= 999950) return sign + (a/1e6).toFixed(1) + 'M';
+  if (a >= 1e3) return sign + (a/1e3).toFixed(1) + 'k';
   return String(n);
 }
 
@@ -16,7 +18,7 @@ export function fmtUsd(v, decimals) {
 
 export function ago(ts) {
   if (!ts) return '';
-  const d = Math.floor((Date.now()/1000) - ts);
+  const d = Math.max(0, Math.floor((Date.now()/1000) - ts));
   if (d < 60) return d + 's ago';
   if (d < 3600) return Math.floor(d/60) + 'm ago';
   if (d < 86400) return Math.floor(d/3600) + 'h ago';
@@ -25,7 +27,7 @@ export function ago(ts) {
 
 export function dur(start) {
   if (!start) return '';
-  const s = Math.floor((Date.now()/1000) - start);
+  const s = Math.max(0, Math.floor((Date.now()/1000) - start));
   const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
   if (h) return h + 'h ' + m + 'm';
   if (m) return m + 'm ' + sec + 's';

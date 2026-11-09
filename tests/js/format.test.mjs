@@ -31,15 +31,14 @@ describe('fmtTok', () => {
     assert.equal(fmtTok(2_560_000), '2.6M');
     assert.equal(fmtTok(1_234_567_890), '1234.6M');
   });
-  test('just under 1M rounds up inside the k branch', () => {
-    // Documents current behaviour: 999,950 is < 1e6 so it takes the k branch
-    // and toFixed(1) rounds it to "1000.0k" rather than "1.0M".
-    assert.equal(fmtTok(999_950), '1000.0k');
-    assert.equal(fmtTok(999_999), '1000.0k');
+  test('just under 1M rolls over to M instead of showing 1000.0k', () => {
+    assert.equal(fmtTok(999_950), '1.0M');
+    assert.equal(fmtTok(999_999), '1.0M');
   });
-  test('negative numbers are passed through unabbreviated', () => {
+  test('negative numbers are abbreviated with the sign in front', () => {
     assert.equal(fmtTok(-5), '-5');
-    assert.equal(fmtTok(-5000), '-5000');
+    assert.equal(fmtTok(-5000), '-5.0k');
+    assert.equal(fmtTok(-2_500_000), '-2.5M');
   });
 });
 
@@ -100,8 +99,8 @@ describe('ago', () => {
     assert.equal(ago(NOW - 86400), '1d ago');
     assert.equal(ago(NOW - 86400 * 400), '400d ago');
   });
-  test('future timestamps currently give a negative seconds string', () => {
-    assert.equal(ago(NOW + 5), '-5s ago');
+  test('future timestamps (clock skew) count as now', () => {
+    assert.equal(ago(NOW + 5), '0s ago');
   });
 });
 
@@ -123,6 +122,10 @@ describe('dur', () => {
     assert.equal(dur(NOW - 3600), '1h 0m');
     assert.equal(dur(NOW - 3661), '1h 1m');
     assert.equal(dur(NOW - 86400 * 2 - 90), '48h 1m');
+  });
+  test('a start in the future (clock skew) counts as 0s', () => {
+    assert.equal(dur(NOW + 5), '0s');
+    assert.equal(dur(NOW + 7200), '0s');
   });
   test('fractional start floors elapsed time', () => {
     assert.equal(dur(NOW - 59.9), '59s');

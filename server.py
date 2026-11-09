@@ -662,15 +662,16 @@ class Handler(BaseHTTPRequestHandler):
     def _unauthorized(self):
         return self._json(401, {"error": "missing or wrong token (set WEBGENTZ_TOKEN)"})
 
-    def _from_other_website(self):
-        """Browsers say which site a request came from. Only our own page and
-        known AI tool origins (for the tracker userscript) may post."""
+    def _from_other_website(self, path):
+        """Browsers say which site a request came from. Only our own page may
+        post anywhere; known AI tool origins (the tracker userscript) may only
+        post /event, never the /api/* actions that open, close or spawn apps."""
         origin = self.headers.get("Origin")
         if not origin:
             return False  # scripts and hooks, not a browser
         if urlparse(origin).hostname in ("localhost", "127.0.0.1", "::1"):
             return False
-        return not self._is_tracker_origin(origin)
+        return not (path == "/event" and self._is_tracker_origin(origin))
 
     def do_OPTIONS(self):
         """Handle preflight CORS requests from the tracker userscript."""
@@ -692,7 +693,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(404, {"error": "not found"})
         if not self._authorized():
             return self._unauthorized()
-        if self._from_other_website():
+        if self._from_other_website(path):
             return self._json(403, {"error": "requests from other websites are not allowed"})
         try:
             length = int(self.headers.get("Content-Length") or 0)
