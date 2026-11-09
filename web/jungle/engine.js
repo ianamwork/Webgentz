@@ -4,6 +4,7 @@ import { autoHour, clock, el } from './format.js';
 import { S, closeHudPopups } from './state.js';
 import { activeAgents, toEngineAgent } from './agents.js';
 import { postOpen } from './api.js';
+import { setShown } from './motion.js';
 import { renderAgentSheet, renderBank, renderBankTip, renderBoardTip, renderHoverCard, renderQuestLog, renderSettingsPop, renderTheme } from './render.js';
 
 export let world = null;
@@ -61,14 +62,14 @@ export function mountEngine() {
       closeHudPopups();
       S.bankOpen = !S.bankOpen;
       S.questsOpen = false;
-      el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
+      setShown(el('modal-back'), S.bankOpen || S.questsOpen);
       renderQuestLog(); renderBank();
     },
     onBoard: function() {
       closeHudPopups();
       S.questsOpen = !S.questsOpen;
       S.bankOpen = false;
-      el('modal-back').hidden = !(S.bankOpen || S.questsOpen);
+      setShown(el('modal-back'), S.bankOpen || S.questsOpen);
       renderQuestLog(); renderBank();
     },
     onHour: function(hour, dark, animating) {

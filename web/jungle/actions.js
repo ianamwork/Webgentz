@@ -6,6 +6,7 @@ import { S, closeHudPopups, upsert } from './state.js';
 import { agentAction, postApproval, postNote, postOpen } from './api.js';
 import { render, renderAgentSheet, renderBank, renderLayerLabels, renderSettingsPop, renderTheme } from './render.js';
 import { syncAgents, world } from './engine.js';
+import { setShown } from './motion.js';
 
 export function openAgentApp(id) {
   postOpen(id);
@@ -67,11 +68,11 @@ export function setLedgerTab(t){ S.ledgerTab = t; render(); }
 
 export function setChannel(id) { S.ledgerChannel = id; render(); }
 
-export function openQuests()  { closeHudPopups(); S.questsOpen = true; S.bankOpen = false; el('modal-back').hidden = false; render(); }
+export function openQuests()  { closeHudPopups(); S.questsOpen = true; S.bankOpen = false; setShown(el('modal-back'), true); render(); }
 
-export function openBank()    { closeHudPopups(); S.settingsOpen = false; S.bankOpen = true; S.questsOpen = false; el('modal-back').hidden = false; render(); }
+export function openBank()    { closeHudPopups(); S.settingsOpen = false; S.bankOpen = true; S.questsOpen = false; setShown(el('modal-back'), true); render(); }
 
-export function closeModals() { S.questsOpen = false; S.bankOpen = false; el('modal-back').hidden = true; render(); }
+export function closeModals() { S.questsOpen = false; S.bankOpen = false; setShown(el('modal-back'), false); render(); }
 
 export function toggleSettings(){
   S.settingsOpen = !S.settingsOpen;

@@ -13,6 +13,14 @@
   --shadow-sm: 0 1px 4px rgba(0,0,0,0.14);
   --shadow-md: 0 2px 10px rgba(0,0,0,0.18);
   --shadow-lg: 0 6px 24px rgba(0,0,0,0.26);
+
+  /* Motion. Short, no bounce; see the Motion section at the end. */
+  --dur-1: 120ms;  /* hover, press, small exits */
+  --dur-2: 180ms;  /* popovers, hover cards, most exits */
+  --dur-3: 240ms;  /* sheet, drawer and modal entrances */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);  /* entering: fast start, soft landing */
+  --ease-in:  cubic-bezier(0.4, 0, 1, 1);  /* leaving: gentle start, quick finish */
+  --rise: 6px;     /* how far things travel as they appear */
 }
 
 /* Light (day) theme */
@@ -324,7 +332,7 @@ button:active { filter: brightness(0.92); }
   width: 36px; height: 36px;
   display: grid; place-items: center;
   background: none; border: 1px solid var(--p-line); color: var(--p-fg); flex: none;
-  transition: background 0.1s;
+  transition: background var(--dur-1) var(--ease-out);
 }
 .sheet-close-btn:hover, .sheet-icon-btn:hover { background: var(--p-soft); }
 .sheet-close-btn:active, .sheet-icon-btn:active { background: var(--p-line); }
@@ -344,7 +352,7 @@ button:active { filter: brightness(0.92); }
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
   outline: none;
 }
 .color-swatch:hover { transform: scale(1.18); }
@@ -408,7 +416,7 @@ button:active { filter: brightness(0.92); }
   color: var(--p-fg); cursor: pointer; text-align: left;
   box-shadow: var(--shadow-md);
   font-family: var(--font-body);
-  transition: transform 0.12s, background 0.12s;
+  transition: transform var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .ledger-tab-btn:hover { transform: translateX(-50%) translateY(-2px); background: var(--p-soft); }
 .ltab-title { font: 600 14px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; flex: none; }
@@ -622,4 +630,70 @@ button:active { filter: brightness(0.92); }
   .quest-col { padding: 12px 14px; }
   .quest-col + .quest-col { border-left: 0; border-top: 1px solid var(--p-line); }
   .board-updates, .board-your-notes { flex: 1 1 50%; min-height: 0; }
+}
+
+/* ===== Motion ============================================================ */
+/* Panels animate in with @keyframes as soon as they appear (hidden removed or
+   node inserted), and out through .is-leaving, which jungle/motion.js adds
+   before hiding them. Only opacity and the separate `translate` / `scale`
+   properties move, so the inline `transform` that positions hover cards and
+   tips is never fought over. Tokens live at the top of this file. */
+@keyframes wg-fade-in   { from { opacity: 0; } }
+@keyframes wg-fade-out  { to   { opacity: 0; } }
+@keyframes wg-rise-in   { from { opacity: 0; translate: 0 var(--rise); } }
+@keyframes wg-sink-out  { to   { opacity: 0; translate: 0 var(--rise); } }
+@keyframes wg-drop-in   { from { opacity: 0; translate: 0 calc(var(--rise) * -1); } }
+@keyframes wg-lift-out  { to   { opacity: 0; translate: 0 calc(var(--rise) * -1); } }
+@keyframes wg-slide-in  { from { opacity: 0; translate: calc(var(--rise) * 4) 0; } }
+@keyframes wg-slide-out { to   { opacity: 0; translate: calc(var(--rise) * 4) 0; } }
+@keyframes wg-zoom-in   { from { opacity: 0; scale: 0.98; } }
+@keyframes wg-zoom-out  { to   { opacity: 0; scale: 0.98; } }
+/* A ring that grows and fades: used once when a status needs attention. */
+@keyframes wg-ping {
+  from { box-shadow: 0 0 0 0 var(--ping); }
+  to   { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* Entrances */
+#agent-sheet              { animation: wg-slide-in var(--dur-3) var(--ease-out); }
+.ledger-drawer            { animation: wg-rise-in  var(--dur-3) var(--ease-out); }
+.ledger-tab-btn           { animation: wg-fade-in  var(--dur-2) var(--ease-out); }
+#modal-back               { animation: wg-fade-in  var(--dur-2) var(--ease-out); }
+.modal-panel              { animation: wg-zoom-in  var(--dur-3) var(--ease-out); }
+#time-pop                 { animation: wg-drop-in  var(--dur-2) var(--ease-out); }
+#hover-card, #bank-tip, #board-tip { animation: wg-rise-in var(--dur-2) var(--ease-out); }
+.acc-body, .color-picker-row, .sheet-needs-box { animation: wg-fade-in var(--dur-2) var(--ease-out); }
+.chat-msg, .board-note    { animation: wg-fade-in  var(--dur-2) var(--ease-out); }
+
+/* Exits (shorter than entrances, so closing feels immediate) */
+.is-leaving               { pointer-events: none !important; }
+#agent-sheet.is-leaving   { animation: wg-slide-out var(--dur-2) var(--ease-in) forwards; }
+.ledger-drawer.is-leaving { animation: wg-sink-out  var(--dur-2) var(--ease-in) forwards; }
+#modal-back.is-leaving    { animation: wg-fade-out  var(--dur-2) var(--ease-in) forwards; }
+.modal-panel.is-leaving   { animation: wg-zoom-out  var(--dur-2) var(--ease-in) forwards; }
+#time-pop.is-leaving      { animation: wg-lift-out  var(--dur-1) var(--ease-in) forwards; }
+#hover-card.is-leaving, #bank-tip.is-leaving, #board-tip.is-leaving {
+  animation: wg-fade-out var(--dur-1) var(--ease-in) forwards;
+}
+
+/* Status changes: one soft ring when an agent starts needing you or finishes.
+   Panels are patched in place, so this plays when the class changes, not on
+   every update. */
+.st-needs_you, .need-badge { --ping: rgba(255,210,63,0.75); animation: wg-ping var(--dur-3) var(--ease-out) 2; }
+.st-done                   { --ping: rgba(63,191,106,0.75); animation: wg-ping var(--dur-3) var(--ease-out) 2; }
+
+/* Hover and press feedback, now that elements survive updates */
+button {
+  transition: background-color var(--dur-1) var(--ease-out),
+              border-color var(--dur-1) var(--ease-out),
+              color var(--dur-1) var(--ease-out),
+              filter var(--dur-1) var(--ease-out);
+}
+.roster-row, .bank-row, .chat-ch-btn { transition: background-color var(--dur-1) var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

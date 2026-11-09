@@ -83,6 +83,12 @@ Clear test state first (DevTools console):
 - [ ] I3. Stopping and restarting the server: the page reconnects by itself within a few seconds.
 - [ ] I4. Clicking a live agent and pressing **Send away** removes it without an error.
 
+## J. Motion
+- [ ] J1. The agent sheet slides in from the right, the ledger rises, modals fade and grow slightly, and the settings popover and hover cards fade in. All take a quarter second or less, with no bounce.
+- [ ] J2. Closing any of them plays a shorter exit before it disappears. Reopening during the exit simply keeps it open.
+- [ ] J3. When an agent starts needing you (or finishes), its status tag and the "need you" badge give one soft ring, not a repeating blink.
+- [ ] J4. With the OS "Reduce motion" setting on (DevTools: Rendering → prefers-reduced-motion: reduce), nothing animates and panels close instantly.
+
 Not practical to check by hand: idle agents fall asleep after 15 minutes, and
 the clock moves forward once a minute in auto mode.
 
@@ -94,3 +100,6 @@ the clock moves forward once a minute in auto mode.
   saved in `localStorage` (`wg-customs`), not that it shows on the same animal.
 - Clear `localStorage` *before* loading the page, not after; the page reads it
   once at start.
+- Closing panels play an exit animation of up to 180ms. A closing panel has the
+  `is-leaving` class and is still in the page until it ends, so scripted checks
+  should treat `is-leaving` as closed, or wait a moment.

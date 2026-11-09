@@ -6,6 +6,7 @@ import { BP, KIND_LABEL, LAYER_LABEL, PALETTE, STATUS_LABEL, SVG } from './const
 import { ago, clock, dur, el, esc, fmtTok, fmtUsd, statusStyle, tokTotal } from './format.js';
 import { S } from './state.js';
 import { morph } from './morph.js';
+import { cancelLeave, leave, setShown } from './motion.js';
 import { activeAgents, agentSummary, av, displayName, layerDisplayName, openLabel, providerBadge, sortedAgents } from './agents.js';
 
 export let rafId = 0;
@@ -90,8 +91,8 @@ export function renderHUD() {
 export function renderSettingsPop() {
   const pop = el('time-pop');
   if (!pop) return;
-  if (!S.settingsOpen) { pop.hidden = true; return; }
-  pop.hidden = false;
+  if (!S.settingsOpen) { setShown(pop, false); return; }
+  setShown(pop, true);
   pop.className = 'bp';
   pop.style.cssText = 'top:68px;right:16px;width:240px;padding:14px;display:flex;flex-direction:column;gap:14px;z-index:20;';
 
@@ -129,10 +130,10 @@ export function renderSettingsPop() {
 export function renderHoverCard() {
   const card = el('hover-card');
   if (!card) return;
-  if (!S.hover || !S.hoverPos) { card.hidden = true; return; }
+  if (!S.hover || !S.hoverPos) { setShown(card, false); return; }
   const a = S.hover;
   const pos = S.hoverPos;
-  card.hidden = false;
+  setShown(card, true);
   card.className = 'bp';
   card.style.cssText = 'left:' + pos.x + 'px;top:' + pos.y + 'px;width:260px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;pointer-events:none;z-index:30;transform:translateY(-100%) translateX(-50%);';
   const toks = tokTotal(a);
@@ -158,8 +159,8 @@ export function renderHoverCard() {
 export function renderBankTip() {
   const tip = el('bank-tip');
   if (!tip) return;
-  if (!S.bankHover) { tip.hidden = true; return; }
-  tip.hidden = false;
+  if (!S.bankHover) { setShown(tip, false); return; }
+  setShown(tip, true);
   tip.className = 'bp';
   const cost = [...S.agents.values()].reduce((s, a) => s + (a.cost_usd || 0), 0);
   tip.style.cssText = 'bottom:64px;left:50%;transform:translateX(-50%);padding:8px 12px;z-index:30;white-space:nowrap;pointer-events:none;';
@@ -169,8 +170,8 @@ export function renderBankTip() {
 export function renderBoardTip() {
   const tip = el('board-tip');
   if (!tip) return;
-  if (!S.boardHover) { tip.hidden = true; return; }
-  tip.hidden = false;
+  if (!S.boardHover) { setShown(tip, false); return; }
+  setShown(tip, true);
   tip.className = 'bp';
   const n = [...S.agents.values()].filter(a => a.status === 'needs_you').length;
   tip.style.cssText = 'bottom:64px;left:50%;transform:translateX(-50%);padding:8px 12px;z-index:30;white-space:nowrap;pointer-events:none;';
@@ -180,10 +181,10 @@ export function renderBoardTip() {
 export function renderAgentSheet() {
   const sheet = el('agent-sheet');
   if (!sheet) return;
-  if (!S.selectedId) { sheet.hidden = true; return; }
+  if (!S.selectedId) { setShown(sheet, false); return; }
   const a = S.agents.get(S.selectedId);
-  if (!a) { sheet.hidden = true; return; }
-  sheet.hidden = false;
+  if (!a) { setShown(sheet, false); return; }
+  setShown(sheet, true);
   sheet.className = 'bp';
   sheet.style.cssText = 'right:16px;top:72px;bottom:72px;width:360px;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);z-index:10;overflow:hidden;';
 
@@ -323,6 +324,9 @@ export function renderLedger() {
   const wrap = el('ledger-wrap');
   if (!wrap) return;
   if (!S.ledgerOpen) {
+    // Let the open drawer play its exit before the pull tab replaces it.
+    const drawer = wrap.querySelector('.ledger-drawer');
+    if (drawer && leave(drawer, renderLedger)) return;
     const msgs = S.messages;
     const unread = msgs.filter(function(m){ return (m.time || m.t || 0) > S.seenT; }).length;
     const last = msgs[msgs.length - 1];
@@ -337,6 +341,7 @@ export function renderLedger() {
     return;
   }
 
+  cancelLeave(wrap.querySelector('.ledger-drawer'));
   const agents = sortedAgents();
   const allMessages = S.messages.slice(-200).reverse();
   const filtered = S.ledgerChannel
@@ -430,8 +435,8 @@ export function renderLedger() {
 export function renderQuestLog() {
   const panel = el('quest-panel');
   if (!panel) return;
-  if (!S.questsOpen) { panel.hidden = true; return; }
-  panel.hidden = false;
+  if (!S.questsOpen) { setShown(panel, false); return; }
+  setShown(panel, true);
   panel.className = 'bp modal-panel quest-panel-el';
 
   const agents = sortedAgents();
@@ -474,8 +479,8 @@ export function renderQuestLog() {
 export function renderBank() {
   const panel = el('bank-panel');
   if (!panel) return;
-  if (!S.bankOpen) { panel.hidden = true; return; }
-  panel.hidden = false;
+  if (!S.bankOpen) { setShown(panel, false); return; }
+  setShown(panel, true);
   panel.className = 'bp modal-panel bank-panel-el';
 
   const agents = sortedAgents();
