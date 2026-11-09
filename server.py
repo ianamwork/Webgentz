@@ -131,6 +131,10 @@ class Store:
             )
             self.db.commit()
 
+    def close(self):
+        with self.lock:
+            self.db.close()
+
     def recent_events(self, since):
         with self.lock:
             rows = self.db.execute(

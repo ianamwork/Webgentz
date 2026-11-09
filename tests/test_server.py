@@ -27,6 +27,10 @@ import webgentz_client  # noqa: E402
 from webgentz_client import Agent  # noqa: E402
 
 
+def tearDownModule():
+    server.store.close()
+
+
 class ServerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -37,6 +41,7 @@ class ServerTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.httpd.shutdown()
+        cls.httpd.server_close()
 
     def post(self, body):
         req = urllib.request.Request(self.base + "/event", data=json.dumps(body).encode(),
@@ -152,6 +157,7 @@ class TokenTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.httpd.shutdown()
+        cls.httpd.server_close()
 
     def setUp(self):
         patcher = mock.patch.object(server, "TOKEN", self.TOKEN)
