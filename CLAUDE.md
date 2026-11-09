@@ -60,6 +60,7 @@ python3 -m unittest discover tests
 Plain `unittest`, one file per module (`test_core`, `test_server`, `test_client`,
 `test_proxy`, `test_codex`). Server tests point `WEBGENTZ_DB`/`WEBGENTZ_CONFIG` at a
 temp dir before importing `server`. Run the suite after any Python change.
+JS tests for `web/jungle/` live in `tests/js/` (`node --test 'tests/js/*.test.mjs'`, built-in `node:test`); `test_web_js.py` runs them and skips if `node` is missing.
 
 ## Rules
 
