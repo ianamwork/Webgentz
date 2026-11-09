@@ -16,6 +16,9 @@ Then set the app's base URL:
 Each API key shows up as its own agent. To give an app a nicer name or a
 layer, add the headers `X-Webgentz-Agent: sales-bot` and
 `X-Webgentz-Layer: canopy` to its requests (most SDKs take `default_headers`).
+
+If the jungle server has WEBGENTZ_TOKEN set, set the same WEBGENTZ_TOKEN here.
+It is only sent to the jungle; the app's own API key goes to the provider as before.
 """
 
 import hashlib

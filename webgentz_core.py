@@ -167,7 +167,8 @@ def normalize_event(raw, now=None):
     if not session or not isinstance(session, (str, int)):
         raise EventError("'session_id' is required: a string that is the same for every event from one agent run")
     name = raw.get("event") or raw.get("hook_event_name")
-    name = ALIASES.get(name, name)
+    if isinstance(name, str):  # a list or object here must get a 400, not a crash
+        name = ALIASES.get(name, name)
     if name not in EVENT_NAMES:
         raise EventError(f"'event' must be one of: {', '.join(EVENT_NAMES)} (got {name!r})")
     version = raw.get("v", EVENT_VERSION)
@@ -177,7 +178,7 @@ def normalize_event(raw, now=None):
     event = {"v": EVENT_VERSION, "session_id": str(session), "event": name,
              "received": now if now is not None else time.time()}
 
-    for key in ("agent_type", "name", "cwd", "model", "transcript_path", "source"):
+    for key in ("agent_type", "helper_type", "name", "cwd", "model", "transcript_path", "source"):
         if raw.get(key) is not None:
             event[key] = short_text(str(raw[key]), 300)
     if raw.get("layer") is not None:
@@ -421,6 +422,7 @@ class World:
             "id": sid,
             "name": event.get("name") or f"{project}-{sid[:4]}",
             "agent_type": event.get("agent_type") or "claude-code",
+            "helper_type": event.get("helper_type"),
             "layer": event.get("layer") or self.layers.layer_for(cwd),
             "project": project,
             "cwd": cwd,
@@ -442,6 +444,7 @@ class World:
             "answer": "",          # its last answer, once a task is done
             "task_started": None,
             "finished_at": None,
+            "last_prompt": "",
         }
 
     def apply(self, event):
@@ -453,7 +456,7 @@ class World:
             name = event["event"]
             now = event["received"]
             agent["last_seen"] = now
-            for key in ("cwd", "agent_type", "layer", "name"):
+            for key in ("cwd", "agent_type", "helper_type", "layer", "name"):
                 if event.get(key):
                     agent[key] = event[key]
             if event.get("model"):
@@ -479,6 +482,7 @@ class World:
         if name == "prompt":
             agent["prompts"] += 1
             agent.update(task_started=event["received"], finished_at=None, answer="")
+            agent["last_prompt"] = (event.get("prompt") or "")[:500]
             prompt = short_text(event.get("prompt"), 70)
             agent.update(status="working", location="townhall", activity="taking orders", detail=prompt, tool_running=False)
             return f"New orders: {prompt}" if prompt else "New orders"
@@ -550,6 +554,17 @@ class World:
         elif agent["status"] == "idle" and quiet > SLEEP_AFTER_SECONDS:
             view.update(status="sleeping", location="houses", activity="asleep")
         return view
+
+    def approval_text(self, agent_id, approved, fallback_name=None):
+        """The note recorded when you press Approve or Deny for an agent, e.g.
+        "Approved api-server-08e8: Claude needs your permission to use Bash".
+        Unknown agents (the page's demo mode) use `fallback_name` or the id."""
+        with self.lock:
+            agent = self.agents.get(agent_id)
+            name = agent["name"] if agent else (fallback_name or agent_id)
+            detail = (agent.get("detail") or "") if agent else ""
+        verb = "Approved" if approved else "Denied"
+        return f"{verb} {name}: {detail}" if detail else f"{verb} {name}"
 
     def snapshot(self, now=None):
         now = now if now is not None else time.time()

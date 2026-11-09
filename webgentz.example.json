@@ -1,11 +1,14 @@
 {
   "default_layer": "understory",
   "layers": {
-    "infra": "roots",
-    "backend": "roots",
-    "app": "understory",
-    "frontend": "understory",
-    "sales": "canopy",
-    "marketing": "canopy"
-  }
+    "infra":     "roots",
+    "backend":   "roots",
+    "frontend":  "understory",
+    "ux":        "understory",
+    "pm":        "understory",
+    "marketing": "canopy",
+    "sales":     "canopy",
+    "research":  "canopy"
+  },
+  "memory_path": "~/Documents/Obsidian Vault"
 }

@@ -20,6 +20,9 @@ then:
 
 Reporting never raises and never slows your agent down: events are sent in
 the background, and if the jungle server is not running they are dropped.
+
+If the jungle needs a token (WEBGENTZ_TOKEN on the server), set the same
+WEBGENTZ_TOKEN in this program's environment, or pass Agent(..., token="...").
 """
 
 import json
@@ -32,6 +35,12 @@ import uuid
 from contextlib import contextmanager
 
 DEFAULT_URL = os.environ.get("WEBGENTZ_URL", "http://127.0.0.1:8765")
+DEFAULT_TOKEN = os.environ.get("WEBGENTZ_TOKEN") or None
+
+
+def auth_headers(token):
+    """The headers that carry the jungle's shared secret, if there is one."""
+    return {"Authorization": f"Bearer {token}"} if token else {}
 
 
 class _Sender:
@@ -44,17 +53,18 @@ class _Sender:
 
     def _run(self):
         while True:
-            url, body = self.queue.get()
+            url, body, token = self.queue.get()
             try:
-                req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+                headers = {"Content-Type": "application/json", **auth_headers(token)}
+                req = urllib.request.Request(url, data=body, headers=headers)
                 urllib.request.urlopen(req, timeout=2).close()
             except Exception:
                 pass  # the jungle is optional; never bother the agent
             self.queue.task_done()
 
-    def send(self, url, event):
+    def send(self, url, event, token=None):
         try:
-            self.queue.put_nowait((url, json.dumps(event).encode()))
+            self.queue.put_nowait((url, json.dumps(event).encode(), token))
         except queue.Full:
             pass
 
@@ -111,12 +121,13 @@ def usage_from_response(response):
 class Agent:
     """One agent run in the jungle."""
 
-    def __init__(self, name, agent_type="python", layer=None, session_id=None, url=None, cwd=None, link=None):
+    def __init__(self, name, agent_type="python", layer=None, session_id=None, url=None, cwd=None, link=None, token=None):
         self.name = name
         self.agent_type = agent_type
         self.layer = layer
         self.session_id = session_id or f"{name}-{uuid.uuid4().hex[:8]}"
         self.url = (url or DEFAULT_URL).rstrip("/") + "/event"
+        self.token = token or DEFAULT_TOKEN
         self.cwd = cwd or os.getcwd()
         # a web page to open when you click this agent, e.g. where it posts its results
         self.link = link
@@ -127,7 +138,7 @@ class Agent:
         if self.layer:
             body["layer"] = self.layer
         body.update({k: v for k, v in fields.items() if v is not None})
-        _get_sender().send(self.url, body)
+        _get_sender().send(self.url, body, self.token)
 
     def start(self):
         self._send("start", open={"url": self.link} if self.link else None)

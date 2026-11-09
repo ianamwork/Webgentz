@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="_ds/industry-22c3fe37-2bb9-43e1-95dd-d4f47e77e80a/styles.css">
+  <script src="_ds/industry-22c3fe37-2bb9-43e1-95dd-d4f47e77e80a/_ds_bundle.js"></script>
+  <script src="jungle-engine.js"></script>
+  <style>
+    [data-theme] { --p-bg: rgba(242,242,243,0.97); --p-fg: #1d1f20; --p-mute: var(--color-neutral-700); --p-line: rgba(29,31,32,0.16); --p-soft: rgba(29,31,32,0.05); --p-acc: var(--color-accent-700); }
+    [data-theme="dusk"] { --p-bg: rgba(29,45,61,0.96); --p-fg: #f2f2f3; --p-mute: var(--color-accent-200); --p-line: rgba(242,242,243,0.18); --p-soft: rgba(242,242,243,0.07); --p-acc: var(--color-accent-200); }
+    [data-theme="dusk"] .blueprint > .corner { color: rgba(242,242,243,0.6); }
+    a { color: var(--color-accent-700); } a:hover { color: var(--color-accent-900); }
+    [data-theme] button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+    [data-theme] button:active { filter: brightness(0.92); }
+  </style>
+</helmet>
+<div data-theme="{{ theme }}" style="position: relative; width: 1200px; height: 900px; overflow: hidden; background: #10170f; font-family: var(--font-body); color: var(--p-fg); user-select: none;">
+  <canvas ref="{{ canvasRef }}" style="position: absolute; inset: 0; width: 1200px; height: 900px; display: block; image-rendering: pixelated;"></canvas>
+
+  <sc-if value="{{ showLabels }}" hint-placeholder-val="{{ true }}">
+    <div style="position: absolute; left: 16px; top: 246px; display: flex; flex-direction: column; gap: 2px; pointer-events: none;">
+      <div style="font: 700 13px/1 var(--font-heading); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 0 #10170f, 0 0 6px rgba(0,0,0,0.6);">Canopy</div>
+      <div style="white-space: nowrap; font: 500 12px/1.2 var(--font-body); color: rgba(255,255,255,0.85); text-shadow: 0 1px 0 #10170f, 0 0 6px rgba(0,0,0,0.6);">Growth &amp; GTM</div>
+    </div>
+    <div style="position: absolute; left: 16px; top: 470px; display: flex; flex-direction: column; gap: 2px; pointer-events: none;">
+      <div style="font: 700 13px/1 var(--font-heading); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 0 #10170f, 0 0 6px rgba(0,0,0,0.6);">Understory</div>
+      <div style="white-space: nowrap; font: 500 12px/1.2 var(--font-body); color: rgba(255,255,255,0.85); text-shadow: 0 1px 0 #10170f, 0 0 6px rgba(0,0,0,0.6);">Product</div>
+    </div>
+    <div style="position: absolute; left: 16px; top: 650px; display: flex; flex-direction: column; gap: 2px; pointer-events: none;">
+      <div style="font: 700 13px/1 var(--font-heading); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 0 #10170f, 0 0 6px rgba(0,0,0,0.6);">Roots</div>
+      <div style="white-space: nowrap; font: 500 12px/1.2 var(--font-body); color: rgba(255,255,255,0.85); text-shadow: 0 1px 0 #10170f, 0 0 6px rgba(0,0,0,0.6);">Infrastructure</div>
+    </div>
+  </sc-if>
+
+  <!-- HUD -->
+  <div style="position: absolute; top: 16px; left: 16px; right: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; pointer-events: none;">
+    <div style="padding: 10px 4px; font: 22px/1 'Press Start 2P', monospace; letter-spacing: 3px; color: #fff; text-shadow: 0 3px 0 #10170f, 0 0 10px rgba(0,0,0,0.5);">WEBGENTZ</div>
+    <div style="pointer-events: auto; display: flex; gap: 8px; align-items: center;">
+      <div style="padding: 0 12px; height: 48px; display: flex; align-items: center; gap: 8px; color: #fff; text-shadow: 0 1px 0 #10170f, 0 0 6px rgba(0,0,0,0.6);">
+        <span style="font: 600 24px/1 var(--font-heading); font-variant-numeric: tabular-nums;">{{ agentCount }}</span>
+        <span style="font-size: 15px;">agents</span>
+        <span style="width: 1px; height: 18px; background: rgba(255,255,255,0.4);"></span>
+        <span style="font: 600 24px/1 var(--font-heading); font-variant-numeric: tabular-nums;">{{ workingCount }}</span>
+        <span style="font-size: 15px;">working</span>
+      </div>
+      <button onClick="{{ toggleTime }}" title="Time of day" class="blueprint" style="font-family: var(--font-body); color: var(--p-fg); background: var(--p-bg); border: 1px solid var(--p-line); padding: 0 12px; height: 40px; display: flex; align-items: center; gap: 8px; cursor: pointer;" style-hover="background: var(--p-soft);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <sc-if value="{{ isNight }}" hint-placeholder-val="{{ false }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+        </sc-if>
+        <sc-if value="{{ isDay }}" hint-placeholder-val="{{ true }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+        </sc-if>
+        <span style="font: 600 16px/1 var(--font-heading); font-variant-numeric: tabular-nums;">{{ timeLabel }}</span>
+      </button>
+      <button onClick="{{ openBank }}" title="Bank · {{ todayCost }} today" class="blueprint" style="color: var(--p-fg); background: var(--p-bg); border: 1px solid var(--p-line); width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer;" style-hover="background: var(--p-soft);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"></circle><path d="M18.09 10.37A6 6 0 1 1 10.34 18"></path><path d="M7 6h1v4"></path><path d="m16.71 13.88.7.71-2.82 2.82"></path></svg>
+      </button>
+      <button onClick="{{ openQuests }}" title="Quest log" class="blueprint" style="font-family: var(--font-body); color: var(--p-fg); background: var(--p-bg); border: 1px solid var(--p-line); padding: 0 18px; height: 52px; display: flex; align-items: center; gap: 10px; cursor: pointer; box-shadow: var(--shadow-md);" style-hover="background: var(--p-soft);">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12h-5"></path><path d="M15 8h-5"></path><path d="M19 17V5a2 2 0 0 0-2-2H4"></path><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"></path></svg>
+        <span style="font: 600 22px/1 var(--font-heading); letter-spacing: 0.02em; white-space: nowrap;">Quest log</span>
+        <sc-if value="{{ hasNeed }}" hint-placeholder-val="{{ true }}">
+          <span style="font: 600 13px/1 var(--font-heading); letter-spacing: 0.04em; text-transform: uppercase; padding: 5px 7px; background: #ffd23f; color: #1d1f20; white-space: nowrap; font-variant-numeric: tabular-nums;">{{ needCount }} need you</span>
+        </sc-if>
+      </button>
+    </div>
+  </div>
+
+  <!-- Time of day -->
+  <sc-if value="{{ timeOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="blueprint" style="position: absolute; top: 68px; right: 16px; width: 320px; background: var(--p-bg); border: 1px solid var(--p-line); padding: 16px; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow-lg);">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <div style="font: 600 20px/1 var(--font-heading); white-space: nowrap;">Time of day</div>
+        <div style="font-size: 13px; color: var(--p-mute); font-variant-numeric: tabular-nums;">{{ phase }} · {{ timeLabel }}</div>
+      </div>
+      <input type="range" min="0" max="24" step="0.05" value="{{ hourVal }}" onChange="{{ onScrub }}" style="width: 100%; accent-color: var(--color-accent); cursor: pointer;">
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--p-line);">
+        <sc-for list="{{ presets }}" as="p" hint-placeholder-count="4">
+          <button onClick="{{ p.select }}" style="padding: 8px 0; border: 0; cursor: pointer; font: 600 13px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; background: {{ p.bg }}; color: {{ p.fg }};" style-hover="filter: brightness(0.94);">{{ p.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button onClick="{{ watchSunset }}" class="btn btn-primary blueprint" style="flex: 1;"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Watch the sunset</button>
+        <button onClick="{{ watchSunrise }}" class="btn btn-secondary" style="flex: 1; color: var(--p-fg); border-color: var(--p-line); background: transparent;">Watch the sunrise</button>
+      </div>
+      <button onClick="{{ toggleAuto }}" style="display: flex; gap: 10px; align-items: flex-start; padding: 0; border: 0; background: none; color: var(--p-fg); cursor: pointer; text-align: left; font-family: var(--font-body);">
+        <span style="flex: none; width: 16px; height: 16px; margin-top: 1px; border: 1px solid var(--p-fg); display: grid; place-items: center; font: 9px/1 'Press Start 2P', monospace; background: {{ autoBox }}; color: var(--p-bg);">{{ autoMark }}</span>
+        <span style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 14px; font-weight: 500;">Follow my computer</span>
+          <span style="font-size: 12px; color: var(--p-mute); line-height: 1.35;">{{ autoNote }}</span>
+        </span>
+      </button>
+    </div>
+  </sc-if>
+
+  <!-- Hover card -->
+  <sc-if value="{{ hasHover }}" hint-placeholder-val="{{ false }}">
+    <div class="blueprint" style="position: absolute; left: {{ hoverLeft }}px; top: {{ hoverTop }}px; width: 260px; background: var(--p-bg); border: 1px solid var(--p-line); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; pointer-events: none; box-shadow: var(--shadow-md);">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <img src="{{ hover.avatar }}" width="36" height="36" style="image-rendering: pixelated; background: var(--p-soft); border: 1px solid var(--p-line);">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font: 600 17px/1.1 var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ hover.name }}</div>
+          <div style="font-size: 12px; color: var(--p-mute);">{{ hover.kind }} · {{ hover.layerLabel }}</div>
+        </div>
+        <span style="font: 600 11px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; background: {{ hover.statusBg }}; color: {{ hover.statusFg }};">{{ hover.statusLabel }}</span>
+      </div>
+      <div style="font-size: 13px; line-height: 1.4;">{{ hover.summary }}</div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--p-mute);">
+        <span>{{ hover.spot }}</span><span>{{ hover.tokens }} · {{ hover.cost }}</span>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ bankHover }}" hint-placeholder-val="{{ false }}">
+    <div class="blueprint" style="position: absolute; left: 330px; top: 470px; background: var(--p-bg); border: 1px solid var(--p-line); padding: 8px 12px; pointer-events: none; font-size: 13px;">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <b style="font-family: var(--font-heading); font-weight: 600; font-size: 15px;">Bank</b> · spending and history
+    </div>
+  </sc-if>
+  <sc-if value="{{ boardHover }}" hint-placeholder-val="{{ false }}">
+    <div class="blueprint" style="position: absolute; left: 690px; top: 430px; background: var(--p-bg); border: 1px solid var(--p-line); padding: 8px 12px; pointer-events: none; font-size: 13px; white-space: nowrap;">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <b style="font-family: var(--font-heading); font-weight: 600; font-size: 15px;">Quest board</b> · to-dos and approvals
+    </div>
+  </sc-if>
+
+  <!-- Agent sheet -->
+  <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+    <div class="blueprint" style="position: absolute; right: 16px; top: 72px; bottom: 72px; width: 360px; background: var(--p-bg); border: 1px solid var(--p-line); display: flex; flex-direction: column; box-shadow: var(--shadow-lg);">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="padding: 16px 16px 12px; display: flex; gap: 12px; align-items: center; border-bottom: 1px solid var(--p-line);">
+        <img src="{{ sel.avatar }}" width="48" height="48" style="image-rendering: pixelated; background: var(--p-soft); border: 1px solid var(--p-line);">
+        <div style="flex: 1; min-width: 0;">
+          <div style="font: 600 22px/1.1 var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sel.name }}</div>
+          <div style="font-size: 13px; color: var(--p-mute);">{{ sel.kind }} · {{ sel.layerLabel }} · {{ sel.spot }}</div>
+        </div>
+        <button onClick="{{ closeSel }}" title="Close" style="width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 1px solid transparent; color: var(--p-fg); cursor: pointer;" style-hover="border-color: var(--p-line);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+      <div style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <span style="font: 600 12px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 8px; background: {{ sel.statusBg }}; color: {{ sel.statusFg }};">{{ sel.statusLabel }}</span>
+          <button class="btn btn-secondary" style="color: var(--p-fg); border-color: var(--p-line); background: transparent; display: flex; gap: 6px; align-items: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+            Open in {{ sel.app }}
+          </button>
+        </div>
+        <sc-if value="{{ sel.needsYou }}" hint-placeholder-val="{{ false }}">
+          <div style="border: 1px solid var(--p-line); background: var(--p-soft); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="font: 600 12px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute);">Waiting on you</div>
+            <div style="font-size: 14px; line-height: 1.45;">{{ sel.detail }}</div>
+            <div style="display: flex; gap: 8px;">
+              <button onClick="{{ sel.approve }}" class="btn btn-primary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Approve</button>
+              <button onClick="{{ sel.deny }}" class="btn btn-secondary" style="color: var(--p-fg); border-color: var(--p-line); background: transparent;">Deny</button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ sel.hasAnswer }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="font: 600 12px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute);">Answer</div>
+            <div style="font-size: 14px; line-height: 1.5; text-wrap: pretty;">{{ sel.answer }}</div>
+          </div>
+        </sc-if>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font: 600 12px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute);">Now</div>
+          <div style="font-size: 14px; line-height: 1.45;">{{ sel.summary }}</div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--p-line);">
+          <div style="padding: 10px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 12px; color: var(--p-mute);">Tokens</span><b style="font: 600 20px/1 var(--font-heading); font-variant-numeric: tabular-nums;">{{ sel.tokens }}</b></div>
+          <div style="padding: 10px; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--p-line);"><span style="font-size: 12px; color: var(--p-mute);">Cost</span><b style="font: 600 20px/1 var(--font-heading); font-variant-numeric: tabular-nums;">{{ sel.cost }}</b></div>
+          <div style="padding: 10px; display: flex; flex-direction: column; gap: 4px; border-left: 1px solid var(--p-line);"><span style="font-size: 12px; color: var(--p-mute);">Active</span><b style="font: 600 20px/1 var(--font-heading); font-variant-numeric: tabular-nums;">{{ sel.age }}</b></div>
+        </div>
+        <div style="display: flex; flex-direction: column; border-top: 1px solid var(--p-line);">
+          <sc-for list="{{ sel.sections }}" as="sec" hint-placeholder-count="3">
+            <div style="border-bottom: 1px solid var(--p-line);">
+              <button onClick="{{ sec.toggle }}" style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 12px 0; background: none; border: 0; color: var(--p-fg); cursor: pointer; font: 600 15px/1 var(--font-heading); letter-spacing: 0.02em;" style-hover="color: var(--p-acc);">
+                <span>{{ sec.title }}</span>
+                <span style="font: 400 13px/1 var(--font-body); color: var(--p-mute);">{{ sec.hint }}</span>
+              </button>
+              <sc-if value="{{ sec.open }}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 0 0 14px; display: flex; flex-direction: column; gap: 8px;">
+                  <sc-for list="{{ sec.rows }}" as="row" hint-placeholder-count="3">
+                    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px;">
+                      <div style="display: flex; justify-content: space-between; gap: 12px;"><span style="color: var(--p-mute); flex: none;">{{ row.k }}</span><span style="text-align: right; word-break: break-word; font-variant-numeric: tabular-nums;">{{ row.v }}</span></div>
+                      <sc-if value="{{ row.hasBar }}" hint-placeholder-val="{{ false }}">
+                        <div style="height: 4px; background: var(--p-soft);"><div style="height: 4px; width: {{ row.bar }}%; background: var(--color-accent);"></div></div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- Ledger: pull-up tab when closed, drawer when open -->
+  <sc-if value="{{ ledgerClosed }}" hint-placeholder-val="{{ true }}">
+    <button onClick="{{ toggleLedger }}" class="blueprint" title="Open the ledger" style="position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: 560px; height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: var(--p-bg); border: 1px solid var(--p-line); color: var(--p-fg); cursor: pointer; font-family: var(--font-body); text-align: left; box-shadow: var(--shadow-md);" style-hover="background: var(--p-soft); transform: translateX(-50%) translateY(-2px);">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex: none;"><path d="m18 15-6-6-6 6"></path></svg>
+      <span style="font: 600 14px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; flex: none;">Ledger</span>
+      <sc-if value="{{ hasUnread }}" hint-placeholder-val="{{ false }}">
+        <span style="flex: none; font: 600 12px/1 var(--font-heading); padding: 3px 6px; background: var(--color-accent); color: #fff; font-variant-numeric: tabular-nums;">{{ unread }} new</span>
+      </sc-if>
+      <span style="width: 1px; height: 16px; background: var(--p-line); flex: none;"></span>
+      <img src="{{ latest.avatar }}" width="20" height="20" style="flex: none; image-rendering: pixelated;">
+      <b style="font: 600 14px/1 var(--font-heading); flex: none;">{{ latest.name }}</b>
+      <span style="font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--p-mute);">{{ latest.text }}</span>
+    </button>
+  </sc-if>
+  <sc-if value="{{ ledgerOpen }}" hint-placeholder-val="{{ false }}">
+  <div class="blueprint" style="position: absolute; left: 16px; right: 16px; bottom: 16px; background: var(--p-bg); border: 1px solid var(--p-line); display: flex; flex-direction: column; box-shadow: var(--shadow-lg);">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="height: 44px; display: flex; align-items: stretch; border-bottom: 1px solid var(--p-line);">
+      <sc-for list="{{ ledgerTabs }}" as="tb" hint-placeholder-count="2">
+        <button onClick="{{ tb.select }}" style="display: flex; align-items: center; gap: 8px; padding: 0 16px; border: 0; border-bottom: 2px solid {{ tb.line }}; background: none; color: var(--p-fg); cursor: pointer; font: 600 15px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;" style-hover="background: var(--p-soft);">
+          {{ tb.label }}
+          <span style="font: 500 12px/1 var(--font-body); color: var(--p-mute); letter-spacing: 0; text-transform: none;">{{ tb.count }}</span>
+        </button>
+      </sc-for>
+      <div style="flex: 1;"></div>
+      <button onClick="{{ toggleLedger }}" title="Close the ledger" style="display: flex; align-items: center; gap: 8px; padding: 0 16px; border: 0; background: none; color: var(--p-fg); cursor: pointer; font-family: var(--font-body); font-size: 13px;" style-hover="background: var(--p-soft);">
+        Close
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+      </button>
+    </div>
+    <sc-if value="{{ tabRoster }}" hint-placeholder-val="{{ false }}">
+      <div style="height: 300px; overflow-y: auto; padding: 0 16px 8px;">
+        <div style="display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2.4fr) minmax(0, 1fr) 120px; gap: 16px; padding: 10px 0 8px; border-bottom: 1px solid var(--p-fg); font: 600 12px/1 var(--font-heading); letter-spacing: 0.08em; text-transform: uppercase; color: var(--p-mute);">
+          <span>Agent</span><span>Working on</span><span>Progress</span><span>Status</span>
+        </div>
+        <sc-for list="{{ roster }}" as="r" hint-placeholder-count="8">
+          <button onClick="{{ r.view }}" title="Find on the tree" style="width: 100%; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2.4fr) minmax(0, 1fr) 120px; gap: 16px; align-items: center; padding: 8px 0; border: 0; border-bottom: 1px solid var(--p-line); background: none; color: var(--p-fg); text-align: left; cursor: pointer; font-family: var(--font-body);" style-hover="background: var(--p-soft);">
+            <span style="display: flex; gap: 10px; align-items: center; min-width: 0;">
+              <img src="{{ r.avatar }}" width="28" height="28" style="flex: none; image-rendering: pixelated; background: var(--p-soft); border: 1px solid var(--p-line);">
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                <b style="font: 600 15px/1.1 var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.name }}</b>
+                <span style="font-size: 12px; color: var(--p-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ r.where }}</span>
+              </span>
+            </span>
+            <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+              <span style="font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.job }}</span>
+              <span style="font-size: 12px; color: var(--p-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.now }}</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 8px;">
+              <span style="flex: 1; height: 4px; background: var(--p-soft);"><span style="display: block; height: 4px; width: {{ r.pct }}%; background: var(--color-accent);"></span></span>
+              <span style="font-size: 12px; font-variant-numeric: tabular-nums;">{{ r.progress }}</span>
+            </span>
+            <span><span style="font: 600 11px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; white-space: nowrap; background: {{ r.statusBg }}; color: {{ r.statusFg }};">{{ r.statusLabel }}</span></span>
+          </button>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{ tabChat }}" hint-placeholder-val="{{ true }}">
+      <div style="height: 300px; display: grid; grid-template-columns: 180px minmax(0, 1fr);">
+        <div style="border-right: 1px solid var(--p-line); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="font: 600 12px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute); padding: 0 8px 10px;">Channels</div>
+          <sc-for list="{{ channels }}" as="ch" hint-placeholder-count="5">
+            <button onClick="{{ ch.select }}" style="display: flex; justify-content: space-between; align-items: center; padding: 7px 8px; border: 0; cursor: pointer; text-align: left; font: 500 14px/1 var(--font-body); color: var(--p-fg); background: {{ ch.bg }};" style-hover="background: var(--p-soft);">
+              <span># {{ ch.label }}</span><span style="font-size: 12px; color: var(--p-mute); font-variant-numeric: tabular-nums;">{{ ch.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div ref="{{ ledgerRef }}" style="overflow-y: auto; padding: 8px 16px; display: flex; flex-direction: column;">
+          <sc-for list="{{ messages }}" as="m" hint-placeholder-count="6">
+            <div style="display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--p-soft);">
+              <img src="{{ m.avatar }}" width="28" height="28" style="flex: none; image-rendering: pixelated; background: var(--p-soft); border: 1px solid var(--p-line);">
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                <div style="display: flex; gap: 8px; align-items: baseline;">
+                  <b style="font: 600 15px/1.1 var(--font-heading);">{{ m.name }}</b>
+                  <span style="font-size: 12px; color: var(--p-mute);">{{ m.where }}</span>
+                  <span style="font-size: 12px; color: var(--p-mute); margin-left: auto; font-variant-numeric: tabular-nums;">{{ m.time }}</span>
+                </div>
+                <div style="font-size: 14px; line-height: 1.4; word-break: break-word;">{{ m.text }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- Quest log -->
+  <sc-if value="{{ questsOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModals }}" style="position: absolute; inset: 0; background: rgba(10,16,12,0.45);"></div>
+    <div class="blueprint" style="position: absolute; left: 140px; right: 140px; top: 90px; bottom: 90px; background: var(--p-bg); border: 1px solid var(--p-line); display: flex; flex-direction: column; box-shadow: var(--shadow-lg);">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--p-line);">
+        <div style="display: flex; align-items: baseline; gap: 12px;">
+          <div style="font: 600 26px/1 var(--font-heading);">Quest log</div>
+          <div style="font-size: 13px; color: var(--p-mute);">{{ questSub }}</div>
+        </div>
+        <button onClick="{{ closeModals }}" title="Close" style="width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 1px solid transparent; color: var(--p-fg); cursor: pointer;" style-hover="border-color: var(--p-line);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </div>
+      <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);">
+        <div style="padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid var(--p-line);">
+          <div style="font: 600 13px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute);">Waiting on you · {{ needCount }}</div>
+          <sc-if value="{{ noWaiting }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size: 14px; color: var(--p-mute); padding: 24px 0;">Nobody needs you right now.</div>
+          </sc-if>
+          <sc-for list="{{ waiting }}" as="w" hint-placeholder-count="2">
+            <div style="border: 1px solid var(--p-line); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <img src="{{ w.avatar }}" width="28" height="28" style="image-rendering: pixelated; background: var(--p-soft); border: 1px solid var(--p-line);">
+                <b style="font: 600 16px/1 var(--font-heading); flex: 1;">{{ w.name }}</b>
+                <span style="font-size: 12px; color: var(--p-mute);">{{ w.ago }}</span>
+              </div>
+              <div style="font-size: 14px; line-height: 1.45;">{{ w.detail }}</div>
+              <div style="display: flex; gap: 8px;">
+                <button onClick="{{ w.approve }}" class="btn btn-primary blueprint"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Approve</button>
+                <button onClick="{{ w.deny }}" class="btn btn-secondary" style="color: var(--p-fg); border-color: var(--p-line); background: transparent;">Deny</button>
+                <button onClick="{{ w.view }}" class="btn btn-ghost" style="color: var(--p-fg); margin-left: auto;">Find on tree</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+          <div style="font: 600 13px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute);">Agents' to-dos</div>
+          <sc-for list="{{ todoGroups }}" as="g" hint-placeholder-count="3">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <img src="{{ g.avatar }}" width="20" height="20" style="image-rendering: pixelated;">
+                <b style="font: 600 15px/1 var(--font-heading); flex: 1;">{{ g.name }}</b>
+                <span style="font-size: 12px; color: var(--p-mute); font-variant-numeric: tabular-nums;">{{ g.progress }}</span>
+              </div>
+              <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+                <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.35; padding-left: 28px;">
+                  <span style="flex: none; width: 14px; height: 14px; margin-top: 2px; border: 1px solid var(--p-fg); display: grid; place-items: center; font: 9px/1 'Press Start 2P', monospace; background: {{ it.boxBg }}; color: var(--p-bg);">{{ it.mark }}</span>
+                  <span style="color: {{ it.color }}; text-decoration: {{ it.deco }};">{{ it.text }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- Bank -->
+  <sc-if value="{{ bankOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModals }}" style="position: absolute; inset: 0; background: rgba(10,16,12,0.45);"></div>
+    <div class="blueprint" style="position: absolute; left: 120px; right: 120px; top: 72px; bottom: 72px; background: var(--p-bg); border: 1px solid var(--p-line); display: flex; flex-direction: column; box-shadow: var(--shadow-lg);">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--p-line);">
+        <div style="display: flex; align-items: baseline; gap: 12px;">
+          <div style="font: 600 26px/1 var(--font-heading);">Bank</div>
+          <div style="font-size: 13px; color: var(--p-mute);">What the tree has spent</div>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div style="display: flex; border: 1px solid var(--p-line);">
+            <sc-for list="{{ measures }}" as="ms" hint-placeholder-count="2">
+              <button onClick="{{ ms.select }}" style="padding: 7px 12px; border: 0; cursor: pointer; font: 600 13px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; background: {{ ms.bg }}; color: {{ ms.fg }};">{{ ms.label }}</button>
+            </sc-for>
+          </div>
+          <button onClick="{{ closeModals }}" title="Close" style="width: 32px; height: 32px; display: grid; place-items: center; background: none; border: 1px solid transparent; color: var(--p-fg); cursor: pointer;" style-hover="border-color: var(--p-line);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
+      </div>
+      <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--p-line);">
+          <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="3">
+            <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; border-left: 1px solid var(--p-line); margin-left: -1px;">
+              <span style="font-size: 13px; color: var(--p-mute);">{{ t.label }}</span>
+              <b style="font: 600 30px/1 var(--font-heading); font-variant-numeric: tabular-nums;">{{ t.value }}</b>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font: 600 13px/1 var(--font-heading); letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-mute);">{{ chartTitle }}</div>
+            <div style="display: flex; gap: 14px; font-size: 13px;">
+              <span style="display: flex; gap: 6px; align-items: center;"><i style="width: 10px; height: 10px; background: var(--color-accent-300);"></i>Canopy</span>
+              <span style="display: flex; gap: 6px; align-items: center;"><i style="width: 10px; height: 10px; background: var(--color-accent-500);"></i>Understory</span>
+              <span style="display: flex; gap: 6px; align-items: center;"><i style="width: 10px; height: 10px; background: var(--color-accent-800);"></i>Roots</span>
+            </div>
+          </div>
+          <div style="height: 170px; display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; align-items: end; border-bottom: 1px solid var(--p-line); padding-top: 8px;">
+            <sc-for list="{{ days }}" as="d" hint-placeholder-count="14">
+              <div title="{{ d.tip }}" style="height: 100%; display: flex; flex-direction: column-reverse; gap: 1px;">
+                <div style="height: {{ d.roots }}%; background: var(--color-accent-800);"></div>
+                <div style="height: {{ d.understory }}%; background: var(--color-accent-500);"></div>
+                <div style="height: {{ d.canopy }}%; background: var(--color-accent-300);"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; font-size: 11px; color: var(--p-mute); text-align: center;">
+            <sc-for list="{{ days }}" as="d" hint-placeholder-count="14"><span>{{ d.label }}</span></sc-for>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <div style="display: grid; grid-template-columns: minmax(0, 2fr) 1fr 1fr 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--p-fg); font: 600 13px/1 var(--font-heading); letter-spacing: 0.08em; text-transform: uppercase; color: var(--p-mute);">
+            <span>Agent</span><span>Layer</span><span style="text-align: right;">Tokens</span><span style="text-align: right;">Cost</span>
+          </div>
+          <sc-for list="{{ ledgerRows }}" as="r" hint-placeholder-count="8">
+            <button onClick="{{ r.view }}" style="display: grid; grid-template-columns: minmax(0, 2fr) 1fr 1fr 1fr; gap: 12px; align-items: center; padding: 8px 0; border: 0; border-bottom: 1px solid var(--p-line); background: none; color: var(--p-fg); text-align: left; cursor: pointer; font: 400 14px/1.2 var(--font-body);" style-hover="background: var(--p-soft);">
+              <span style="display: flex; gap: 8px; align-items: center; min-width: 0;"><img src="{{ r.avatar }}" width="20" height="20" style="image-rendering: pixelated;"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ r.name }}</span></span>
+              <span style="color: var(--p-mute);">{{ r.layer }}</span>
+              <span style="text-align: right; font-variant-numeric: tabular-nums;">{{ r.tokens }}</span>
+              <span style="text-align: right; font-variant-numeric: tabular-nums;">{{ r.cost }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1200, &quot;height&quot;: 900}, &quot;time&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;auto&quot;, &quot;dawn&quot;, &quot;day&quot;, &quot;dusk&quot;, &quot;night&quot;], &quot;default&quot;: &quot;auto&quot;, &quot;tsType&quot;: &quot;'auto' | 'dawn' | 'day' | 'dusk' | 'night'&quot;}, &quot;pace&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;calm&quot;, &quot;busy&quot;], &quot;default&quot;: &quot;calm&quot;, &quot;tsType&quot;: &quot;'calm' | 'busy'&quot;}, &quot;layerLabels&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;}, &quot;ledgerOpen&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: false, &quot;tsType&quot;: &quot;boolean&quot;}}">
+const LAYER_LABEL = { canopy: "Canopy", understory: "Understory", roots: "Roots" };
+const KIND = { infra: "Termite", backend: "Anaconda", frontend: "Tree frog", ux: "Hummingbird", pm: "Spider monkey", marketing: "Toucan", sales: "Macaw", research: "Owl" };
+const SPOT_NAMES = {
+  library: ["Lookout", "Fruit grove", "Root scan"], workshop: ["Nest weaving", "Vine weaving", "Tunnel digging"], barracks: ["Flock", "Troop", "Colony"],
+  townhall: ["Quest board", "Quest board", "Quest board"], campfire: ["Sunny perch", "Shady leaf", "Warm hollow"], forge: ["Song post", "Pond", "Engine room"],
+  market: ["Trading branch", "Visitors' vine", "River gate"], houses: ["Roost", "Hammock", "Burrow"], square: ["Branch", "Branch", "Tunnel"],
+};
+const LI = { canopy: 0, understory: 1, roots: 2 };
+const TOOLS = [
+  { tool: "Read", location: "library", activity: "researching", things: ["server.py", "README.md", "pricing.csv", "notes.md"] },
+  { tool: "Grep", location: "library", activity: "researching", things: ["TODO", "def main", "token"] },
+  { tool: "WebSearch", location: "library", activity: "researching", things: ["competitor pricing 2026", "agent observability tools"] },
+  { tool: "Edit", location: "workshop", activity: "building", things: ["world.js", "style.css", "landing.html"] },
+  { tool: "Write", location: "workshop", activity: "building", things: ["report.md", "email_draft.txt"] },
+  { tool: "Bash", location: "forge", activity: "running commands", things: ["npm test", "python3 analysis.py", "git status"] },
+  { tool: "Task", location: "barracks", activity: "briefing a helper", things: ["Summarize the sales calls"] },
+  { tool: "mcp__gmail__search", location: "market", activity: "using an outside tool", things: ["inbox: leads"] },
+];
+const CREW = [
+  { type: "infra", project: "infra-terraform", layer: "roots", job: "Set up the database backups", app: "Terminal", ask: "Needs your permission to run: terraform apply",
+    answer: "Nightly backups now run at 2am and keep 14 days. I tested a restore into a scratch database and it worked.",
+    todos: ["Write the backup schedule", "Add 14-day retention", "Test a restore", "Document the runbook"] },
+  { type: "backend", project: "api-server", layer: "roots", job: "Speed up the slow /events endpoint", app: "iTerm2", ask: "Needs your permission to run: psql -c \"CREATE INDEX…\"",
+    answer: "Added an index on (session_id, received). The endpoint went from 840ms to 95ms.",
+    todos: ["Profile /events", "Add the index", "Re-run the load test"] },
+  { type: "frontend", project: "webgentz-app", layer: "understory", job: "Build the jungle view", app: "Cursor", ask: "Wants to know: keep the old panel or remove it?",
+    answer: "The jungle view is done. Agents climb the trunk between layers and the leaves wilt when someone is stuck.",
+    todos: ["Draw the tree layers", "Add climbing between layers", "Wilt leaves when agents are stuck", "Hover cards"] },
+  { type: "ux", project: "onboarding-flow", layer: "understory", job: "Fix the signup form bugs", app: "VS Code", ask: "Needs your permission to edit 4 files",
+    answer: "Fixed 3 bugs: the email check, the double submit, and the error message that never cleared.",
+    todos: ["Fix the email check", "Stop the double submit", "Clear stale errors"] },
+  { type: "pm", project: "roadmap", layer: "understory", job: "Plan the Q4 roadmap", app: "Claude", ask: "Wants you to pick: ship history export or spending caps first?",
+    answer: "Drafted the Q4 roadmap with 3 themes. Spending caps lead because two teams asked for them.",
+    todos: ["Collect requests", "Group into themes", "Draft the roadmap doc"] },
+  { type: "marketing", project: "launch-posts", layer: "canopy", job: "Write the launch thread", app: "Notion", ask: "Wants you to approve the thread before scheduling",
+    answer: "The launch thread has 7 posts and is saved as a draft.",
+    todos: ["Outline the thread", "Write 7 posts", "Pick screenshots", "Schedule"] },
+  { type: "sales", project: "sales-outreach", layer: "canopy", job: "Draft follow-ups for 20 leads", app: "Gmail", ask: "Approve the email drafts before they send?",
+    answer: "20 drafts are ready in Gmail. 4 leads asked for pricing, so those drafts include the one-pager.",
+    todos: ["Pull the lead list", "Draft 20 follow-ups", "Attach the one-pager"] },
+  { type: "research", project: "market-research", layer: "canopy", job: "Compare agent observability tools", app: "Claude", ask: "Needs your permission to use WebFetch on 6 sites",
+    answer: "Compared 6 tools. None show agents across providers in one place, and only two track cost per agent.",
+    todos: ["List the tools", "Try each one", "Write the comparison"] },
+];
+const SEED = [
+  { status: "sleeping", location: "houses", activity: "asleep", detail: "Quiet for 10 minutes", done: 2 },
+  { status: "working", location: "forge", activity: "running commands", detail: "Bash: npm test", done: 1 },
+  { status: "working", location: "workshop", activity: "building", detail: "Edit: world.js", done: 3 },
+  { status: "needs_you", location: "workshop", activity: "waiting for you", done: 1 },
+  { status: "idle", location: "campfire", activity: "resting", detail: "Finished the job", done: 3, finished: true },
+  { status: "working", location: "workshop", activity: "building", detail: "Write: email_draft.txt", done: 1 },
+  { status: "needs_you", location: "forge", activity: "waiting for you", done: 1 },
+  { status: "working", location: "library", activity: "researching", detail: "WebSearch: agent observability tools", done: 1 },
+];
+const pick = l => l[Math.floor(Math.random() * l.length)];
+const ORDER = { needs_you: 0, stuck: 1, working: 2, idle: 3, sleeping: 4 };
+const fmtTok = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n);
+const fmtUsd = n => "$" + (n >= 100 ? n.toFixed(0) : n.toFixed(2));
+const clock = t => { const d = new Date(t); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+const ago = t => { const s = Math.max(0, (Date.now() - t) / 1000); return s < 60 ? "just now" : s < 3600 ? Math.round(s / 60) + "m ago" : Math.round(s / 3600) + "h ago"; };
+const dur = t => { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? m + "m" : Math.floor(m / 60) + "h " + (m % 60) + "m"; };
+const tokTotal = a => a.tokens.input + a.tokens.output + a.tokens.cache_read + a.tokens.cache_write;
+const STATUS = {
+  working: { label: "Working", bg: "var(--color-accent)", fg: "#fff" },
+  needs_you: { label: "Needs you", bg: "#ffd23f", fg: "#1d1f20" },
+  stuck: { label: "May be stuck", bg: "#f8a830", fg: "#1d1f20" },
+  idle: { label: "Resting", bg: "var(--p-soft)", fg: "var(--p-fg)" },
+  done: { label: "Done", bg: "#3fbf6a", fg: "#10170f" },
+  sleeping: { label: "Asleep", bg: "var(--p-soft)", fg: "var(--p-mute)" },
+};
+
+class Component extends DCLogic {
+  canvasRef = React.createRef();
+  ledgerRef = React.createRef();
+  state = this.initial();
+
+  initial() {
+    const now = Date.now(), agents = {}, messages = [];
+    CREW.forEach((c, i) => {
+      const s = SEED[i], k = 20000 + ((i * 7919) % 9) * 9000;
+      const a = {
+        id: "a" + i, name: c.project, project: c.project, agent_type: c.type, layer: c.layer, crew: i,
+        model: i % 3 ? "claude-sonnet-5-5" : "claude-opus-5-5", status: s.status, location: s.location, activity: s.activity,
+        detail: s.status === "needs_you" ? c.ask : s.detail, started: now - (8 + i * 6) * 60000, since: now - (1 + i) * 60000,
+        tokens: { input: k * 0.05 | 0, output: k * 0.3 | 0, cache_read: k * 6, cache_write: k * 0.8 | 0 },
+        cost_usd: 0.4 + i * 0.37, tool_counts: { Read: 3 + i, Edit: 2 + (i % 3), Bash: 1 + (i % 2) }, prompts: 1,
+        recent: [], done: s.done, answer: s.finished ? c.answer : "",
+      };
+      agents[a.id] = a;
+      messages.push({ id: "s" + i + "a", t: now - (30 - i * 3) * 60000, agent: a.id, text: "New orders: " + c.job });
+      messages.push({ id: "s" + i + "b", t: now - (14 - i) * 60000, agent: a.id, text: s.status === "needs_you" ? c.ask : s.status === "idle" ? c.answer : s.detail });
+    });
+    messages.sort((p, q) => p.t - q.t);
+    messages.forEach(m => agents[m.agent].recent.push({ t: m.t, text: m.text }));
+    return { ledgerTab: "chat", boardHover: false, hour: 12, dark: 0, auto: true, animating: false, timeOpen: false, agents, messages, seenT: now, selectedId: null, hover: null, hoverPos: null, bankHover: false, ledgerOpen: !!this.props.ledgerOpen, questsOpen: false, bankOpen: false, channel: "all", open: { tools: false, recent: false, details: false }, measure: "cost", history: this.makeHistory() };
+  }
+  makeHistory() {
+    const out = [];
+    for (let d = 13; d >= 1; d--) {
+      const r = n => 0.55 + ((Math.sin(d * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1 * 0.9;
+      out.push({ d, canopy: 3.1 * r(1), understory: 4.2 * r(2), roots: 2.4 * r(3) });
+    }
+    return out;
+  }
+  presetHour(p) { return { dawn: 6.4, day: 12, dusk: 19.0, night: 23 }[p]; }
+  autoHour() {
+    if (this.mq && this.mq.matches) return 23;
+    const d = new Date(); return d.getHours() + d.getMinutes() / 60;
+  }
+  startHour() { const p = this.props.time || "auto"; return p === "auto" ? this.autoHour() : this.presetHour(p); }
+  goTo(h, secs, from, linear) { if (!this.engine) return; this.engine.animateTo(h, secs, from, linear); }
+  componentDidMount() {
+    this.mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+    this._onScheme = () => { if (this.state.auto) this.goTo(this.autoHour(), 3); };
+    this.mq && this.mq.addEventListener && this.mq.addEventListener("change", this._onScheme);
+    this._clock = setInterval(() => { if (this.state.auto && !this.state.animating && !(this.mq && this.mq.matches)) this.goTo(this.autoHour(), 2); }, 60000);
+    const h0 = this.startHour();
+    this.setState({ hour: h0, auto: (this.props.time || "auto") === "auto" });
+    const go = () => {
+      if (!window.JungleEngine || !this.canvasRef.current) return (this._wait = setTimeout(go, 50));
+      this.engine = window.JungleEngine.mount(this.canvasRef.current, {
+        hour: h0,
+        onHour: (h, dark, animating) => this.setState({ hour: h, dark, animating }),
+        selectedId: () => this.state.selectedId,
+        onHover: (d, pos, place) => this.setState({ hover: d ? d.id : null, hoverPos: pos, bankHover: place === "bank", boardHover: place === "board" }),
+        onBoard: () => this.setState({ questsOpen: true, bankOpen: false }),
+        onClick: d => this.setState({ selectedId: d ? d.id : null, open: { tools: false, recent: false, details: false } }),
+        onBank: () => this.setState({ bankOpen: true, questsOpen: false }),
+      });
+      this.engine.setAgents(Object.values(this.state.agents));
+      this.forceUpdate();
+    };
+    go();
+    const tick = () => {
+      const ids = Object.keys(this.state.agents);
+      this.step(pick(ids));
+      const busy = (this.props.pace || "calm") === "busy";
+      this._timer = setTimeout(tick, busy ? 900 + Math.random() * 900 : 2200 + Math.random() * 2600);
+    };
+    this._timer = setTimeout(tick, 1500);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._timer); clearTimeout(this._wait); clearInterval(this._clock); this.engine && this.engine.destroy();
+    this.mq && this.mq.removeEventListener && this.mq.removeEventListener("change", this._onScheme);
+  }
+  componentDidUpdate(pp, ps) {
+    if (pp.time !== this.props.time) { const auto = (this.props.time || "auto") === "auto"; this.setState({ auto }); this.goTo(this.startHour(), 2.5); }
+    if (this.engine) {
+      if (ps.agents !== this.state.agents) this.engine.setAgents(Object.values(this.state.agents));
+    }
+    if (pp.ledgerOpen !== this.props.ledgerOpen) this.setState({ ledgerOpen: !!this.props.ledgerOpen });
+    const el = this.ledgerRef.current;
+    if (el && (ps.messages !== this.state.messages || ps.ledgerOpen !== this.state.ledgerOpen || ps.channel !== this.state.channel)) el.scrollTop = el.scrollHeight;
+  }
+  post(a, text, by) {
+    const m = { id: Math.random().toString(36).slice(2), t: Date.now(), agent: a.id, text, by };
+    a.recent = [...a.recent, { t: m.t, text }].slice(-30);
+    return m;
+  }
+  commit(a, m) {
+    this.setState(s => ({ agents: { ...s.agents, [a.id]: a }, messages: [...s.messages, m].slice(-120) }));
+  }
+  step(id) {
+    const prev = this.state.agents[id]; if (!prev) return;
+    if (prev.status === "needs_you") return;
+    const a = { ...prev, tokens: { ...prev.tokens }, tool_counts: { ...prev.tool_counts } }, c = CREW[a.crew], roll = Math.random(), now = Date.now();
+    if ((a.status === "idle" || a.status === "sleeping") && Math.random() < 0.6) return;
+    let text;
+    if (a.status === "idle" || a.status === "sleeping" || roll < 0.06) {
+      a.prompts++; Object.assign(a, { status: "working", location: "townhall", activity: "taking orders", detail: c.job, answer: "", done: 0, since: now });
+      text = "New orders: " + c.job;
+    } else if (roll < 0.12) {
+      Object.assign(a, { status: "needs_you", activity: "waiting for you", detail: c.ask, since: now }); text = c.ask;
+    } else if (roll < 0.15) {
+      Object.assign(a, { status: "stuck", activity: "a long tool run, may be stuck", detail: "Bash: npm run build", since: now }); text = "Quiet for 5 minutes during a long command";
+    } else if (roll < 0.27 || a.done >= c.todos.length) {
+      Object.assign(a, { status: "idle", location: "campfire", activity: "resting", detail: "Finished the job", answer: c.answer, done: c.todos.length, since: now }); text = "Done. " + c.answer;
+    } else {
+      const t = pick(TOOLS), detail = t.tool + ": " + pick(t.things);
+      a.tool_counts[t.tool] = (a.tool_counts[t.tool] || 0) + 1;
+      if (t.activity === "building" && a.done < c.todos.length - 1 && Math.random() < 0.6) {
+        const item = c.todos[a.done]; a.done++;
+        Object.assign(a, { status: "working", location: "townhall", activity: "checking off", detail: "Checked off: " + item }); text = "Checked off: " + item;
+      } else { Object.assign(a, { status: "working", location: t.location, activity: t.activity, detail }); text = detail; }
+    }
+    const k = Math.floor(Math.random() * 4000) + 500;
+    a.tokens.input += k * 0.05 | 0; a.tokens.output += k * 0.3 | 0; a.tokens.cache_read += k * 6; a.tokens.cache_write += k * 0.8 | 0;
+    a.cost_usd += (k * 0.05 * 4 + k * 0.3 * 20 + k * 6 * 0.4 + k * 0.8 * 5) / 1e6;
+    this.commit(a, this.post(a, text));
+  }
+  resolve(id, ok) {
+    const prev = this.state.agents[id], a = { ...prev };
+    if (ok) Object.assign(a, { status: "working", location: "workshop", activity: "building", detail: "Back to work after your OK", since: Date.now() });
+    else Object.assign(a, { status: "idle", location: "campfire", activity: "resting", detail: "You said no", since: Date.now() });
+    this.commit(a, this.post(a, ok ? "You approved: " + prev.detail : "You denied: " + prev.detail, "you"));
+  }
+  view(a) {
+    const st = a.status === "idle" && a.answer ? STATUS.done : STATUS[a.status] || STATUS.idle;
+    const spot = (SPOT_NAMES[a.location] || SPOT_NAMES.square)[LI[a.layer]];
+    return {
+      id: a.id, name: a.name, kind: KIND[a.agent_type], layerLabel: LAYER_LABEL[a.layer], spot,
+      avatar: window.JungleEngine ? window.JungleEngine.avatar(a.agent_type) : "",
+      statusLabel: st.label, statusBg: st.bg, statusFg: st.fg,
+      summary: a.status === "needs_you" ? a.detail : a.status === "idle" && a.answer ? "Finished: " + CREW[a.crew].job : a.status === "sleeping" ? "Asleep. Quiet for 10 minutes." : a.activity.charAt(0).toUpperCase() + a.activity.slice(1) + (a.detail ? " · " + a.detail : ""),
+      tokens: fmtTok(tokTotal(a)), cost: fmtUsd(a.cost_usd), age: dur(a.started), detail: a.detail, answer: a.answer, hasAnswer: !!a.answer,
+      needsYou: a.status === "needs_you", app: CREW[a.crew].app,
+    };
+  }
+  timeVals() {
+    const S = this.state, h = S.hour, manual = () => this.setState({ auto: false });
+    const phase = h >= 5 && h < 7.6 ? "Dawn" : h >= 7.6 && h < 17 ? "Day" : h >= 17 && h < 20.4 ? "Dusk" : "Night";
+    const hh = Math.floor(h) % 24, mm = Math.floor((h % 1) * 60);
+    const sys = this.mq && this.mq.matches;
+    return {
+      isNight: S.dark > 0.5, isDay: !(S.dark > 0.5), timeOpen: S.timeOpen, toggleTime: () => this.setState(s => ({ timeOpen: !s.timeOpen })),
+      hourVal: Math.round(h * 20) / 20, timeLabel: String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0"), phase,
+      onScrub: e => { manual(); this.engine && this.engine.setHour(parseFloat(e.target.value)); this.setState({ hour: parseFloat(e.target.value) }); },
+      presets: [["Dawn", 6.4], ["Day", 12], ["Dusk", 19], ["Night", 23]].map(([label, v]) => ({ label, bg: phase === label ? "var(--p-fg)" : "transparent", fg: phase === label ? "var(--p-bg)" : "var(--p-fg)", select: () => { manual(); this.goTo(v, 2.5); } })),
+      watchSunset: () => { manual(); this.goTo(21, 18, 16.6, true); },
+      watchSunrise: () => { manual(); this.goTo(9, 18, 4.4, true); },
+      autoOn: S.auto, autoMark: S.auto ? "✓" : "", autoBox: S.auto ? "var(--p-fg)" : "transparent",
+      toggleAuto: () => { const auto = !S.auto; this.setState({ auto }); if (auto) this.goTo(this.autoHour(), 2.5); },
+      autoNote: sys ? "Your computer is in dark mode, so it's night." : "Your computer is in light mode, so the jungle follows your clock.",
+    };
+  }
+  renderVals() {
+    const S = this.state, list = Object.values(S.agents), eng = window.JungleEngine;
+    const av = t => (eng ? eng.avatar(t) : "");
+    const need = list.filter(a => a.status === "needs_you");
+    const close = () => this.setState({ questsOpen: false, bankOpen: false });
+    const findOnTree = id => this.setState({ questsOpen: false, bankOpen: false, selectedId: id });
+
+    let hover = null, hoverLeft = 0, hoverTop = 0;
+    if (S.hover && S.agents[S.hover] && S.hoverPos && S.hover !== S.selectedId) {
+      hover = this.view(S.agents[S.hover]);
+      hoverLeft = Math.max(12, Math.min(1200 - 272, S.hoverPos.x - 130));
+      hoverTop = S.hoverPos.y - 150 < 64 ? S.hoverPos.y + 70 : S.hoverPos.y - 150;
+    }
+    let sel = null;
+    if (S.selectedId && S.agents[S.selectedId]) {
+      const a = S.agents[S.selectedId];
+      sel = this.view(a);
+      sel.approve = () => this.resolve(a.id, true); sel.deny = () => this.resolve(a.id, false);
+      const tools = Object.entries(a.tool_counts).sort((p, q) => q[1] - p[1]), max = tools.length ? tools[0][1] : 1;
+      const mk = (key, title, hint, rows) => ({ title, hint, rows, open: S.open[key], toggle: () => this.setState(s => ({ open: { ...s.open, [key]: !s.open[key] } })) });
+      sel.sections = [
+        mk("recent", "Recent activity", a.recent.length + " events", a.recent.slice(-8).reverse().map(r => ({ k: clock(r.t), v: r.text, hasBar: false }))),
+        mk("tools", "Tools used", tools.reduce((n, t) => n + t[1], 0) + " calls", tools.map(([k, v]) => ({ k, v: String(v), hasBar: true, bar: Math.round(v / max * 100) }))),
+        mk("details", "Details", a.model, [
+          { k: "Project", v: "~/code/" + a.project }, { k: "Model", v: a.model }, { k: "Orders", v: String(a.prompts) },
+          { k: "Input", v: fmtTok(a.tokens.input) }, { k: "Output", v: fmtTok(a.tokens.output) }, { k: "Cache read", v: fmtTok(a.tokens.cache_read) }, { k: "Cache write", v: fmtTok(a.tokens.cache_write) },
+        ].map(r => ({ ...r, hasBar: false }))),
+      ];
+    }
+    const chans = [["all", "all"], ["needs", "needs-you"], ["canopy", "canopy"], ["understory", "understory"], ["roots", "roots"]];
+    const inChan = (m, ch) => ch === "all" || (ch === "needs" ? /^(Needs|Wants|Approve)|You (approved|denied)/.test(m.text) : S.agents[m.agent].layer === ch);
+    const msgView = m => { const a = S.agents[m.agent]; return { id: m.id, avatar: av(a.agent_type), name: m.by === "you" ? "You → " + a.name : a.name, where: KIND[a.agent_type] + " · " + LAYER_LABEL[a.layer], time: clock(m.t), text: m.text }; };
+    const latestM = S.messages[S.messages.length - 1];
+    const todayCost = list.reduce((n, a) => n + a.cost_usd, 0), todayTok = list.reduce((n, a) => n + tokTotal(a), 0);
+    const byLayer = { canopy: 0, understory: 0, roots: 0 }; list.forEach(a => (byLayer[a.layer] += a.cost_usd));
+    const hist = [...S.history, { d: 0, ...byLayer }];
+    const val = (h, l) => (S.measure === "cost" ? h[l] : h[l] * 640000);
+    const peak = Math.max(...hist.map(h => val(h, "canopy") + val(h, "understory") + val(h, "roots"))) * 1.08;
+    const fmtM = v => (S.measure === "cost" ? fmtUsd(v) : fmtTok(Math.round(v)));
+    const week = hist.slice(-7).reduce((n, h) => n + h.canopy + h.understory + h.roots, 0);
+    const dayName = d => { const x = new Date(Date.now() - d * 864e5); return d === 0 ? "Today" : x.getDate() + "/" + (x.getMonth() + 1); };
+
+    return {
+      ...this.timeVals(),
+      theme: S.dark > 0.5 ? "dusk" : "day", canvasRef: this.canvasRef, ledgerRef: this.ledgerRef, showLabels: this.props.layerLabels ?? true,
+      agentCount: list.length, workingCount: list.filter(a => a.status === "working").length, needCount: need.length,
+      needBg: need.length ? "#ffd23f" : "var(--p-bg)", todayCost: fmtUsd(todayCost),
+      openQuests: () => this.setState({ questsOpen: true, bankOpen: false }), openBank: () => this.setState({ bankOpen: true, questsOpen: false }), closeModals: close,
+      hasHover: !!hover, hover: hover || {}, hoverLeft, hoverTop, bankHover: S.bankHover && !S.bankOpen,
+      hasSel: !!sel, sel: sel || {}, closeSel: () => this.setState({ selectedId: null }),
+      hasNeed: need.length > 0, boardHover: S.boardHover && !S.questsOpen,
+      tabChat: S.ledgerTab === "chat", tabRoster: S.ledgerTab === "roster",
+      ledgerTabs: [["chat", "Chat", S.messages.length + ""], ["roster", "Who's on what", list.filter(a => a.status === "working").length + " working"]].map(([id, label, count]) => ({ label, count, line: S.ledgerTab === id ? "var(--color-accent)" : "transparent", select: () => this.setState({ ledgerTab: id }) })),
+      roster: [...list].sort((p, q) => (ORDER[p.status] ?? 9) - (ORDER[q.status] ?? 9)).map(a => {
+        const v = this.view(a), todos = CREW[a.crew].todos;
+        return { id: a.id, avatar: v.avatar, name: a.name, where: v.kind + " · " + v.spot, job: CREW[a.crew].job, now: a.status === "sleeping" ? "Asleep" : a.status === "idle" ? (a.answer ? "Finished" : "Resting") : a.detail || a.activity,
+          progress: a.done + "/" + todos.length, pct: Math.round(a.done / todos.length * 100), statusLabel: v.statusLabel, statusBg: v.statusBg, statusFg: v.statusFg, view: () => findOnTree(a.id) };
+      }),
+      ledgerOpen: S.ledgerOpen, ledgerClosed: !S.ledgerOpen, toggleLedger: () => this.setState(s => ({ ledgerOpen: !s.ledgerOpen, seenT: Date.now() })),
+      unread: S.messages.filter(m => m.t > S.seenT).length, hasUnread: !S.ledgerOpen && S.messages.some(m => m.t > S.seenT),
+      latest: latestM ? msgView(latestM) : {},
+      channels: chans.map(([id, label]) => ({ id, label, count: S.messages.filter(m => inChan(m, id)).length, bg: S.channel === id ? "var(--p-soft)" : "transparent", select: () => this.setState({ channel: id }) })),
+      messages: S.messages.filter(m => inChan(m, S.channel)).slice(-60).map(msgView),
+      questsOpen: S.questsOpen, questSub: need.length + " waiting on you · " + list.filter(a => a.done < CREW[a.crew].todos.length && a.status !== "idle").length + " agents mid-quest",
+      noWaiting: need.length === 0,
+      waiting: need.sort((p, q) => p.since - q.since).map(a => ({ id: a.id, avatar: av(a.agent_type), name: a.name, ago: ago(a.since), detail: a.detail, approve: () => this.resolve(a.id, true), deny: () => this.resolve(a.id, false), view: () => findOnTree(a.id) })),
+      todoGroups: list.filter(a => a.status !== "sleeping").map(a => {
+        const todos = CREW[a.crew].todos;
+        return { id: a.id, avatar: av(a.agent_type), name: a.name, progress: a.done + "/" + todos.length,
+          items: todos.map((t, i) => { const d = i < a.done; return { text: t, mark: d ? "✓" : "", boxBg: d ? "var(--p-fg)" : "transparent", color: d ? "var(--p-mute)" : "var(--p-fg)", deco: d ? "line-through" : "none" }; }) };
+      }),
+      bankOpen: S.bankOpen,
+      measures: [["cost", "Dollars"], ["tokens", "Tokens"]].map(([id, label]) => ({ label, bg: S.measure === id ? "var(--p-fg)" : "transparent", fg: S.measure === id ? "var(--p-bg)" : "var(--p-fg)", select: () => this.setState({ measure: id }) })),
+      tiles: [{ label: "Today", value: fmtUsd(todayCost) }, { label: "Last 7 days", value: fmtUsd(week) }, { label: "Tokens today", value: fmtTok(todayTok) }],
+      chartTitle: S.measure === "cost" ? "Spend per day by layer" : "Tokens per day by layer",
+      days: hist.map(h => ({ label: dayName(h.d), tip: dayName(h.d) + ": " + fmtM(val(h, "canopy") + val(h, "understory") + val(h, "roots")), canopy: val(h, "canopy") / peak * 100, understory: val(h, "understory") / peak * 100, roots: val(h, "roots") / peak * 100 })),
+      ledgerRows: [...list].sort((p, q) => q.cost_usd - p.cost_usd).map(a => ({ id: a.id, avatar: av(a.agent_type), name: a.name, layer: LAYER_LABEL[a.layer], tokens: fmtTok(tokTotal(a)), cost: fmtUsd(a.cost_usd), view: () => findOnTree(a.id) })),
+    };
+  }
+}
+</script>
+</body>
+</html>
