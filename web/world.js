@@ -19,12 +19,29 @@ const SVG = {
 
 const KIND_LABEL = {
   'claude-code': 'Claude Code', 'claude-api': 'Claude API', 'claude-web': 'Claude.ai',
-  'codex': 'Codex', 'openai': 'OpenAI', 'gtm': 'GTM', 'research': 'Research',
-  'python': 'Python', 'infra': 'Infra', 'backend': 'Backend', 'frontend': 'Frontend',
-  'ux': 'UX', 'pm': 'PM', 'marketing': 'Marketing', 'sales': 'Sales',
+  'codex': 'Codex', 'openai': 'OpenAI', 'grok': 'Grok', 'gemini': 'Gemini',
+  'muse': 'Muse', 'instinct': 'Instinct', 'ollama': 'Ollama', 'lm-studio': 'LM Studio',
+  'gtm': 'GTM', 'research': 'Research', 'python': 'Python', 'infra': 'Infra',
+  'backend': 'Backend', 'frontend': 'Frontend', 'ux': 'UX', 'pm': 'PM',
+  'marketing': 'Marketing', 'sales': 'Sales',
 };
 
 const LAYER_LABEL = { canopy: 'Canopy', understory: 'Understory', roots: 'Roots' };
+
+// Provider identity: which AI platform is behind each agent_type
+const PROVIDER_INFO = {
+  'claude-code': { label: 'Claude', color: '#8b5cf6' },
+  'claude-api':  { label: 'Claude', color: '#8b5cf6' },
+  'claude-web':  { label: 'Claude', color: '#8b5cf6' },
+  'openai':      { label: 'OpenAI', color: '#10a37f' },
+  'codex':       { label: 'OpenAI', color: '#10a37f' },
+  'grok':        { label: 'Grok',   color: '#94a3b8' },
+  'gemini':      { label: 'Gemini', color: '#4285f4' },
+  'muse':        { label: 'Muse',   color: '#1877f2' },
+  'instinct':    { label: 'Instinct', color: '#f97316' },
+  'ollama':      { label: 'Local',  color: '#22c55e' },
+  'lm-studio':   { label: 'Local',  color: '#22c55e' },
+};
 
 const STATUS_ORDER = { needs_you: 0, stuck: 1, working: 2, idle: 3, sleeping: 4, done: 5 };
 
@@ -45,6 +62,8 @@ const S = {
   agents: new Map(),
   messages: [],
   selectedId: null,
+  layerNames: JSON.parse(localStorage.getItem('webgentz.layerNames') || 'null') || {},
+  renamingLayer: null,
   hover: null,
   hoverPos: null,
   bankHover: false,
@@ -149,6 +168,22 @@ function tokTotal(a) {
 function statusStyle(status) {
   const map = { working:'st-working', needs_you:'st-needs_you', stuck:'st-stuck', idle:'st-idle', sleeping:'st-sleeping', done:'st-done' };
   return map[status] || 'st-idle';
+}
+
+function providerBadge(agent_type) {
+  const info = PROVIDER_INFO[agent_type];
+  if (!info) return '';
+  return '<span class="provider-badge" style="background:' + info.color + '1a;color:' + info.color + ';border-color:' + info.color + '44">' + esc(info.label) + '</span>';
+}
+
+function displayName(name) {
+  const m = name && name.match(/^(.+)-([0-9a-f]{4,8})$/i);
+  if (!m) return esc(name || '');
+  return esc(m[1]) + '<span class="name-suffix">-' + esc(m[2]) + '</span>';
+}
+
+function layerDisplayName(layer) {
+  return S.layerNames[layer] || LAYER_LABEL[layer] || layer;
 }
 
 function agentSummary(a) {
@@ -268,21 +303,39 @@ function mountEngine() {
 function el(id) { return document.getElementById(id); }
 
 function renderLayerLabels() {
-  const counts = { canopy: 0, roots: 0 };
+  const counts = { canopy: 0, understory: 0, roots: 0 };
   for (const a of activeAgents()) {
     const l = a.layer || 'understory';
     if (l in counts) counts[l]++;
   }
   const items = [
-    ['ll-canopy',     'Canopy',     counts.canopy],
-    ['ll-roots',      'Roots',      counts.roots],
+    ['ll-canopy',     'canopy'],
+    ['ll-understory', 'understory'],
+    ['ll-roots',      'roots'],
   ];
-  for (const [id, label, n] of items) {
+  for (const [id, layer] of items) {
     const div = el(id);
     if (!div) continue;
-    div.innerHTML = n > 0
-      ? '<span class="ll-head">' + esc(label) + '</span><span class="ll-sub">' + n + ' agent' + (n===1?'':'s') + '</span>'
-      : '';
+    const n = counts[layer] || 0;
+    const name = layerDisplayName(layer);
+    if (S.renamingLayer === layer) {
+      div.style.pointerEvents = 'auto';
+      if (!div.querySelector('.ll-rename-input')) {
+        div.innerHTML = '<input class="ll-rename-input" value="' + esc(name) + '" maxlength="24" ' +
+          'onblur="saveLayerName(\'' + layer + '\',this.value)" ' +
+          'onkeydown="if(event.key===\'Enter\')this.blur();if(event.key===\'Escape\'){S.renamingLayer=null;renderLayerLabels();}" ' +
+          'style="pointer-events:auto" />';
+        const input = div.querySelector('input');
+        if (input) { input.focus(); input.select(); }
+      }
+    } else {
+      div.style.pointerEvents = n > 0 ? 'auto' : 'none';
+      const newHTML = n > 0
+        ? '<span class="ll-head ll-clickable" title="Click to rename" onclick="startRenameLayer(\'' + layer + '\')" style="pointer-events:auto;cursor:pointer">' + esc(name) + '</span>' +
+          '<span class="ll-sub">' + n + ' agent' + (n===1?'':'s') + '</span>'
+        : '';
+      if (div.dataset.llCache !== newHTML) { div.dataset.llCache = newHTML; div.innerHTML = newHTML; }
+    }
   }
 }
 
@@ -372,11 +425,12 @@ function renderHoverCard() {
     '<div class="hc-header">' +
       av(a, 36) +
       '<div style="min-width:0;flex:1">' +
-        '<div class="hc-name">' + esc(a.name) + '</div>' +
-        '<div class="hc-sub">' + esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + ' · ' + esc(LAYER_LABEL[a.layer] || '') + '</div>' +
+        '<div class="hc-name">' + displayName(a.name) + '</div>' +
+        '<div class="hc-sub">' + esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + ' · ' + esc(layerDisplayName(a.layer) || '') + '</div>' +
       '</div>' +
       '<span class="status-tag ' + statusStyle(a.status) + '">' + esc(STATUS_LABEL[a.status] || a.status) + '</span>' +
     '</div>' +
+    (providerBadge(a.agent_type) ? '<div>' + providerBadge(a.agent_type) + '</div>' : '') +
     (a.detail ? '<div style="font-size:13px">' + esc(a.detail) + '</div>' : '') +
     '<div style="display:flex;gap:16px;font-size:12px;color:var(--p-mute)">' +
       (toks ? '<span>' + fmtTok(toks) + ' tok</span>' : '') +
@@ -514,8 +568,11 @@ function renderAgentSheet() {
       '<button style="all:unset;cursor:pointer;display:contents" onclick="openAgentApp(\'' + esc(a.id) + '\')" title="Switch to this agent\'s app">' +
         av(a, 48) +
         '<div style="flex:1;min-width:0">' +
-          '<div class="sheet-name">' + esc(a.name) + '</div>' +
-          '<div class="sheet-sub">' + esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + ' · ' + esc(LAYER_LABEL[a.layer] || '') + '</div>' +
+          '<div class="sheet-name">' + displayName(a.name) + '</div>' +
+          '<div class="sheet-sub" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
+            esc(KIND_LABEL[a.agent_type] || a.agent_type || '') + ' · ' + esc(layerDisplayName(a.layer) || '') +
+            providerBadge(a.agent_type) +
+          '</div>' +
           '<span class="status-tag ' + statusStyle(a.status) + '" style="margin-top:6px;display:inline-block">' + esc(STATUS_LABEL[a.status] || a.status) + '</span>' +
         '</div>' +
       '</button>' +
@@ -581,7 +638,7 @@ function renderLedger() {
         agents.map(function(a){
           return '<button class="chat-ch-btn ' + (S.ledgerChannel === a.id ? 'active' : '') + '" onclick="setChannel(\'' + esc(a.id) + '\')">' +
             '<span style="display:flex;align-items:center;gap:6px;flex:1;min-width:0">' +
-              av(a, 16) + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.name) + '</span>' +
+              av(a, 16) + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + displayName(a.name) + '</span>' +
             '</span>' +
             '<span class="chat-ch-n">' + S.messages.filter(function(m){ return m.agent_id === a.id; }).length + '</span>' +
           '</button>';
@@ -620,7 +677,7 @@ function renderLedger() {
           '<div class="roster-agent-cell">' +
             av(a, 28) +
             '<div class="roster-agent-info">' +
-              '<div class="roster-agent-name">' + esc(a.name) + '</div>' +
+              '<div class="roster-agent-name">' + displayName(a.name) + (providerBadge(a.agent_type) ? ' ' + providerBadge(a.agent_type) : '') + '</div>' +
               '<div class="roster-agent-sub">' + esc(a.open && a.open.app ? a.open.app + (a.open.tty ? ' · ' + a.open.tty.replace(/^\/dev\//, '') : '') : (a.cwd ? a.cwd.split('/').filter(Boolean).pop() : (KIND_LABEL[a.agent_type] || a.agent_type || ''))) + (a.helper_type ? ' · helper: ' + esc(a.helper_type) : '') + '</div>' +
             '</div>' +
           '</div>' +
@@ -673,7 +730,7 @@ function renderQuestLog() {
   const updates = agents.filter(function(a){ return a.status !== 'sleeping'; }).map(function(a){
     const detail = a.activity || a.detail || agentSummary(a) || STATUS_LABEL[a.status] || 'Standing by';
     return '<article class="board-update">' +
-      '<div class="board-update-hdr">' + av(a, 24) + '<b>' + esc(a.name) + '</b><span class="status-tag ' + statusStyle(a.status) + '">' + esc(STATUS_LABEL[a.status] || a.status) + '</span></div>' +
+      '<div class="board-update-hdr">' + av(a, 24) + '<b>' + displayName(a.name) + '</b>' + providerBadge(a.agent_type) + '<span class="status-tag ' + statusStyle(a.status) + '">' + esc(STATUS_LABEL[a.status] || a.status) + '</span></div>' +
       '<div>' + esc(detail) + '</div>' +
       '<div class="board-update-meta">Live from agent activity</div>' +
     '</article>';
@@ -766,7 +823,7 @@ function renderBank() {
         '<div class="bank-table-hdr"><span>Agent</span><span>Layer</span><span class="num">Tokens</span><span class="num">Cost</span></div>' +
         agents.map(function(a){
           return '<button class="bank-row" onclick="selectAgent(\'' + esc(a.id) + '\');closeModals()">' +
-            '<div class="bank-agent-cell">' + av(a,20) + '<span>' + esc(a.name) + '</span></div>' +
+            '<div class="bank-agent-cell">' + av(a,20) + '<span>' + displayName(a.name) + '</span></div>' +
             '<span style="color:var(--p-mute);font-size:13px">' + esc(LAYER_LABEL[a.layer] || a.layer || '') + '</span>' +
             '<span class="num">' + fmtTok(tokTotal(a)) + '</span>' +
             '<span class="num">' + fmtUsd(a.cost_usd) + '</span>' +
@@ -945,6 +1002,23 @@ function closeModals() { S.questsOpen = false; S.bankOpen = false; el('modal-bac
 function toggleSettings(){
   S.settingsOpen = !S.settingsOpen;
   renderSettingsPop();
+}
+
+function startRenameLayer(layer) {
+  S.renamingLayer = layer;
+  renderLayerLabels();
+}
+
+function saveLayerName(layer, value) {
+  S.renamingLayer = null;
+  const name = (value || '').trim();
+  if (name && name !== LAYER_LABEL[layer]) {
+    S.layerNames[layer] = name;
+  } else {
+    delete S.layerNames[layer];
+  }
+  localStorage.setItem('webgentz.layerNames', JSON.stringify(S.layerNames));
+  requestAnimationFrame(render);
 }
 function setTimeOfDay(night) { S.auto = false; if (world) world.setHour(night ? 22 : 12); }
 function setDarkOverride(dark) { S.darkOverride = dark; renderSettingsPop(); renderTheme(); }

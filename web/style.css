@@ -268,6 +268,35 @@ button:active { filter: brightness(0.92); }
 }
 .hc-name { font: 600 17px/1.1 var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hc-sub  { font-size: 12px; color: var(--p-mute); }
+
+/* Provider badge */
+.provider-badge {
+  display: inline-block;
+  font: 600 10px/1 var(--font-heading);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+/* Muted hex suffix on agent names */
+.name-suffix { opacity: 0.4; font-weight: 400; }
+
+/* Layer label rename input */
+.ll-rename-input {
+  background: rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.5);
+  color: #fff;
+  font: 600 11px/1 var(--font-heading);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  width: 120px;
+  outline: none;
+}
+.ll-rename-input:focus { border-color: rgba(255,255,255,0.9); }
+.ll-clickable:hover { opacity: 0.7; }
 #bank-tip, #board-tip {
   padding: 8px 12px; pointer-events: none;
   font-size: 13px; z-index: 30; white-space: nowrap;
