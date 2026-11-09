@@ -18,7 +18,7 @@ export const S = {
   boardNotes: [],
   boardError: '',
   bankOpen: false,
-  settingsOpen: true,
+  settingsOpen: false,
   hour: 12,
   dark: 0,
   auto: true,

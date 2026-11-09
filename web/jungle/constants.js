@@ -41,6 +41,17 @@ export const PROVIDER_INFO = {
   'lm-studio':   { label: 'Local',  color: '#22c55e' },
 };
 
+// Small icons inside status tags, so status never depends on colour alone.
+const ICON = (body) => '<svg class="st-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+export const STATUS_ICON = {
+  working:   ICON('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+  needs_you: ICON('<circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="12.5"/><line x1="12" y1="16.5" x2="12" y2="16.5"/>'),
+  stuck:     ICON('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/>'),
+  idle:      ICON('<line x1="9" y1="7" x2="9" y2="17"/><line x1="15" y1="7" x2="15" y2="17"/>'),
+  sleeping:  ICON('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
+  done:      ICON('<polyline points="20 6 9 17 4 12"/>'),
+};
+
 export const STATUS_ORDER = { needs_you: 0, stuck: 1, working: 2, idle: 3, sleeping: 4, done: 5 };
 
 export const STATUS_LABEL = { working: 'Working', needs_you: 'Needs you', stuck: 'Stuck', idle: 'Idle', sleeping: 'Sleeping', done: 'Done' };

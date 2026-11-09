@@ -12,14 +12,14 @@ Clear test state first (DevTools console):
 ## A. Load
 - [ ] A1. The page loads with no console errors and the tree draws on the canvas.
 - [ ] A2. Agents walk in one by one; after ~10s the HUD says **7 agents**.
-- [ ] A3. The HUD shows the WEBGENTZ logo, "N agents · M working", a gear button with the current time, and a **Quest Board** button.
-- [ ] A4. While any agent needs you, the Quest Board button shows a yellow "N need you" badge.
+- [ ] A3. The HUD shows the WEBGENTZ logo, "N agents · M working" (readable in day and night), a gear button with the current time, and a **Quest Board** button.
+- [ ] A4. While any agent needs you, the Quest Board button shows a yellow "N need you" badge on its corner. The button and the counts do not shift when it appears.
 - [ ] A5. The layer labels (Canopy, Understory, Roots) show "N agents" for layers that have agents and nothing for empty layers.
 - [ ] A6. The clock shows the real local time (auto mode).
 
 ## B. Settings popover (gear button)
-- [ ] B1. The popover is open when the page first loads.
-- [ ] B2. It shows the Bank total in dollars, a **View details** button, Light/Dark and Day/Night toggles.
+- [ ] B1. The popover is closed when the page first loads; the gear opens it, hanging just under the gear.
+- [ ] B2. It shows the Bank total in dollars, a **View details** button, Light/Dark and Day/Night toggles. The chosen option in each toggle is filled.
 - [ ] B3. The gear button opens and closes it.
 - [ ] B4. Pressing anywhere outside it (and outside the gear) closes it.
 - [ ] B5. **Dark** switches the page to the dusk theme and highlights Dark; **Light** switches back.
@@ -37,12 +37,12 @@ Clear test state first (DevTools console):
 
 ## D. Agent sheet
 - [ ] D1. The header shows avatar, name, kind · layer, provider badge and status tag.
-- [ ] D2. The stat grid shows Tokens, Cost and Active time.
+- [ ] D2. The stat grid shows Tokens, Cost and Active time. The sheet is only as tall as its content, and never covers the ledger drawer (the drawer leaves room for it).
 - [ ] D3. **Tools**, **Recent** and **Details** expand and collapse, and the chevron flips. Details lists project folder, "Running in" (for app agents), session id, started, layer, type and token counts.
 - [ ] D4. The palette button shows colour swatches. Picking one recolours the avatar and the animal on the tree, for every kind of animal (frog, owl, monkey and macaw included). The reset swatch restores the default.
 - [ ] D5. A picked colour survives a page reload.
 - [ ] D6. For an agent that needs you, the sheet shows **Approve**, **Deny** and a find button. Approve turns it to Working and Deny to Idle, straight away.
-- [ ] D7. **Send away** calls `POST /api/dismiss`. Demo agents are unknown to the server, so an error alert appears and the sheet stays open.
+- [ ] D7. **Send away** (at the bottom of the sheet) calls `POST /api/dismiss`. Demo agents are unknown to the server, so an error alert appears and the sheet stays open.
 - [ ] D8. **Close terminal** only appears for Terminal/iTerm2 agents with a tty (never in demo mode).
 - [ ] D9. Clicking the header calls `POST /api/open`.
 - [ ] D10. The X button, the Escape key, and clicking outside the sheet (not on the canvas) all close it.
@@ -58,7 +58,7 @@ Clear test state first (DevTools console):
 - [ ] E7. At the top of the chat feed, new messages appear at the top. Scrolled down, the messages you are reading stay put as new ones arrive.
 
 ## F. Quest Board
-- [ ] F1. The HUD button opens it over a dark backdrop, with "Agent updates" on the left and "Your quests and notes" on the right.
+- [ ] F1. The HUD button opens it over a dark backdrop, with "Agent updates" on the left and "Your quests and notes" on the right. Agents that need you come first, with **Approve**, **Deny** and **Find on tree**.
 - [ ] F2. Posting an empty note does nothing.
 - [ ] F3. Posting text adds the note to the list and clears the box.
 - [ ] F4. The note is still there after a reload (it is loaded from `/api/notes`).
@@ -68,7 +68,7 @@ Clear test state first (DevTools console):
 ## G. Bank window
 - [ ] G1. The tiles show today's spend, tokens used and tool calls.
 - [ ] G2. The table lists every agent with layer, tokens and cost. Clicking a row opens that agent's sheet and closes the window.
-- [ ] G3. With some history in the database, a 14-day chart appears and **Cost** / **Tokens** switch what it shows. The last bar is labelled with today's date (not yesterday's).
+- [ ] G3. With some history in the database, a 14-day chart appears and **Cost** / **Tokens** switch what it shows. It always shows 14 days in a row, and the last bar is labelled with today's date (not yesterday's). With no history, an empty state explains why.
 
 ## H. Renaming layers
 - [ ] H1. Clicking a layer label turns it into a text box with the name selected.
@@ -82,6 +82,12 @@ Clear test state first (DevTools console):
 - [ ] I2. `curl -X POST localhost:8765/event -d '{"session_id":"qa","event":"start","agent_type":"python"}'` makes a new animal appear.
 - [ ] I3. Stopping and restarting the server: the page reconnects by itself within a few seconds.
 - [ ] I4. Clicking a live agent and pressing **Send away** removes it without an error.
+
+## K. Layout, type and keyboard
+- [ ] K1. At 1440×900, 1024×768 and 390×844 nothing overflows the window, and every HUD button can be reached. On a phone the gear and Quest Board are icon buttons, and the sheet, drawer and modals fill the width.
+- [ ] K2. Every status tag shows an icon as well as a colour (working, needs you, stuck, idle, sleeping, done).
+- [ ] K3. Tab moves through the layer names, the HUD buttons and the open panels with a visible focus ring (white over the canvas).
+- [ ] K4. Tokens and costs line up as numbers (tabular figures) in the HUD, sheet, roster and Bank.
 
 ## J. Motion
 - [ ] J1. The agent sheet slides in from the right, the ledger rises, modals fade and grow slightly, and the settings popover and hover cards fade in. All take a quarter second or less, with no bounce.

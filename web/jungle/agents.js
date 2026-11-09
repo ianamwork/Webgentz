@@ -1,12 +1,26 @@
 // Read-only views of agents: lists, labels, avatars and the engine's shape.
-import { LAYER_LABEL, PROVIDER_INFO, STATUS_ORDER, TOOL_MAP } from './constants.js';
-import { esc } from './format.js';
+import { LAYER_LABEL, PROVIDER_INFO, STATUS_ICON, STATUS_LABEL, STATUS_ORDER, TOOL_MAP } from './constants.js';
+import { esc, statusStyle } from './format.js';
 import { S } from './state.js';
 
+// A neutral hairline badge with a small square in the provider's colour, so
+// provider colours never compete with status colours.
 export function providerBadge(agent_type) {
   const info = PROVIDER_INFO[agent_type];
   if (!info) return '';
-  return '<span class="provider-badge" style="background:' + info.color + '1a;color:' + info.color + ';border-color:' + info.color + '44">' + esc(info.label) + '</span>';
+  return '<span class="provider-badge"><i style="background:' + info.color + '"></i>' + esc(info.label) + '</span>';
+}
+
+// Status tag with an icon and a label.
+export function statusTag(status) {
+  return '<span class="status-tag ' + statusStyle(status) + '">' + (STATUS_ICON[status] || '') +
+    esc(STATUS_LABEL[status] || status || '') + '</span>';
+}
+
+// The name without its hex session suffix, for tight spaces.
+export function shortName(name) {
+  const m = name && name.match(/^(.+)-([0-9a-f]{4,8})$/i);
+  return m ? m[1] : (name || '');
 }
 
 export function displayName(name) {
@@ -28,10 +42,10 @@ export function agentSummary(a) {
 
 export function av(a, size) {
   size = size || 28;
-  if (!window.JungleEngine) return '<div style="width:' + size + 'px;height:' + size + 'px;background:var(--p-soft)"></div>';
+  if (!window.JungleEngine) return '<span class="av" style="width:' + size + 'px;height:' + size + 'px"></span>';
   const custom = a && a.id && S.customs[a.id];
   const url = JungleEngine.avatar(a.agent_type || 'backend', custom && custom.color);
-  return '<img src="' + url + '" width="' + size + '" height="' + size + '" style="image-rendering:pixelated">';
+  return '<img class="av" src="' + url + '" width="' + size + '" height="' + size + '" alt="">';
 }
 
 export function openLabel(a) {
