@@ -112,6 +112,8 @@ document.addEventListener('click', function(e) {
   // Use composedPath so re-renders during the event don't orphan e.target
   const path = e.composedPath ? e.composedPath() : [];
   if (sheet.contains(e.target) || path.indexOf(sheet) !== -1) return;
+  // Rows in the roster and bank open the sheet on this same click; don't undo that.
+  if (path.some(function(n){ return n.hasAttribute && n.hasAttribute('data-opens-sheet'); })) return;
   closeSheet();
 });
 

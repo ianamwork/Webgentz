@@ -39,7 +39,7 @@ Clear test state first (DevTools console):
 - [ ] D1. The header shows avatar, name, kind · layer, provider badge and status tag.
 - [ ] D2. The stat grid shows Tokens, Cost and Active time.
 - [ ] D3. **Tools**, **Recent** and **Details** expand and collapse, and the chevron flips. Details lists project folder, "Running in" (for app agents), session id, started, layer, type and token counts.
-- [ ] D4. The palette button shows colour swatches. Picking one recolours the avatar and the animal on the tree. The reset swatch restores the default.
+- [ ] D4. The palette button shows colour swatches. Picking one recolours the avatar and the animal on the tree, for every kind of animal (frog, owl, monkey and macaw included). The reset swatch restores the default.
 - [ ] D5. A picked colour survives a page reload.
 - [ ] D6. For an agent that needs you, the sheet shows **Approve**, **Deny** and a find button. Approve turns it to Working and Deny to Idle, straight away.
 - [ ] D7. **Send away** calls `POST /api/dismiss`. Demo agents are unknown to the server, so an error alert appears and the sheet stays open.
@@ -66,13 +66,13 @@ Clear test state first (DevTools console):
 ## G. Bank window
 - [ ] G1. The tiles show today's spend, tokens used and tool calls.
 - [ ] G2. The table lists every agent with layer, tokens and cost. Clicking a row opens that agent's sheet and closes the window.
-- [ ] G3. With some history in the database, a 14-day chart appears and **Cost** / **Tokens** switch what it shows.
+- [ ] G3. With some history in the database, a 14-day chart appears and **Cost** / **Tokens** switch what it shows. The last bar is labelled with today's date (not yesterday's).
 
 ## H. Renaming layers
 - [ ] H1. Clicking a layer label turns it into a text box with the name selected.
 - [ ] H2. Enter (or clicking away) saves. The new name shows on the label, in hover cards, and in the sheet.
-- [ ] H3. Escape cancels without saving.
-- [ ] H4. Saving an empty name, or the default name, goes back to the default.
+- [ ] H3. Escape cancels: the box goes away and nothing is saved, even after clicking elsewhere.
+- [ ] H4. Saving an empty name, or the default name, goes back to the default and the box goes away.
 - [ ] H5. Custom names survive a page reload.
 
 ## I. Live mode (no `?demo`)
@@ -83,22 +83,6 @@ Clear test state first (DevTools console):
 
 Not practical to check by hand: idle agents fall asleep after 15 minutes, and
 the clock moves forward once a minute in auto mode.
-
-## Known bugs (current behaviour, kept on purpose)
-
-These fail the checklist today. A change that only refactors code must leave
-them exactly as they are; fix them in their own commit.
-
-- **G2 / E4.** Clicking a row in the Bank table or in "Who's on what" closes
-  the panel but does not open the agent's sheet. The click that opens the sheet
-  also reaches the document's "click outside the sheet" listener, which closes it.
-- **G3.** Chart day labels are one day early west of UTC: `new Date('2026-11-08')`
-  is read as UTC midnight.
-- **H3 / H4.** After Escape, or after saving an empty or unchanged name, the text
-  box can stay on the label (the label's HTML cache is not cleared when the box
-  appears). Clicking away then saves whatever is in the box.
-- **D4.** For `gtm`, `python` and `research` animals the avatar ignores the chosen
-  colour (that is `JungleEngine.avatar`); the colour is still saved.
 
 ## Tips for testing
 

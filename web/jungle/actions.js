@@ -89,6 +89,8 @@ export function cancelRenameLayer() {
 }
 
 export function saveLayerName(layer, value) {
+  // Escape (or a re-render) may blur the box after the rename was cancelled.
+  if (S.renamingLayer !== layer) return;
   S.renamingLayer = null;
   const name = (value || '').trim();
   if (name && name !== LAYER_LABEL[layer]) {

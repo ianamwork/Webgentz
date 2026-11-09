@@ -30,6 +30,9 @@ export function renderLayerLabels() {
     if (S.renamingLayer === layer) {
       div.style.pointerEvents = 'auto';
       if (!div.querySelector('.ll-rename-input')) {
+        // The box replaces the cached label HTML, so forget the cache: the next
+        // normal render must always swap the label back in.
+        div.dataset.llCache = '';
         div.innerHTML = '<input class="ll-rename-input" value="' + esc(name) + '" maxlength="24" ' +
           'onblur="saveLayerName(\'' + layer + '\',this.value)" ' +
           'onkeydown="if(event.key===\'Enter\')this.blur();if(event.key===\'Escape\')cancelRenameLayer();" ' +
@@ -382,7 +385,7 @@ export function renderLedger() {
       agents.map(function(a){
         const toks = tokTotal(a);
         const pct = Math.round((toks / maxToks) * 100);
-        return '<button class="roster-row" onclick="jumpTo(\'' + esc(a.id) + '\')">' +
+        return '<button class="roster-row" data-opens-sheet onclick="jumpTo(\'' + esc(a.id) + '\')">' +
           '<div class="roster-agent-cell">' +
             av(a, 28) +
             '<div class="roster-agent-info">' +
@@ -488,9 +491,11 @@ export function renderBank() {
   const hist = S.bankHistory;
   const maxVal = Math.max.apply(null, hist.map(function(d){ return S.measure === 'cost' ? (d.cost||0) : (d.tokens||0); }).concat([0.001]));
 
+  // dayStr is the server's local calendar day, "YYYY-MM-DD". Reading it with
+  // new Date() would treat it as UTC midnight and show the day before.
   function dateLabel(dayStr) {
-    const d = new Date(dayStr);
-    return (d.getMonth()+1) + '/' + d.getDate();
+    const parts = String(dayStr).split('-');
+    return Number(parts[1]) + '/' + Number(parts[2]);
   }
 
   const histChart = hist.length > 0
@@ -531,7 +536,7 @@ export function renderBank() {
       '<div>' +
         '<div class="bank-table-hdr"><span>Agent</span><span>Layer</span><span class="num">Tokens</span><span class="num">Cost</span></div>' +
         agents.map(function(a){
-          return '<button class="bank-row" onclick="selectAgent(\'' + esc(a.id) + '\');closeModals()">' +
+          return '<button class="bank-row" data-opens-sheet onclick="selectAgent(\'' + esc(a.id) + '\');closeModals()">' +
             '<div class="bank-agent-cell">' + av(a,20) + '<span>' + displayName(a.name) + '</span></div>' +
             '<span style="color:var(--p-mute);font-size:13px">' + esc(LAYER_LABEL[a.layer] || a.layer || '') + '</span>' +
             '<span class="num">' + fmtTok(tokTotal(a)) + '</span>' +

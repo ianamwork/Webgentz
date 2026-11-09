@@ -373,18 +373,18 @@
       ball(c, -6, -7, 4, color, 0.8); ball(c, 0, -7, 2, color); ball(c, 5, -9, 3, color); px(c, 6, -10, 1, 1, "#111");
       px(c, 5, -12, 1, 1, dark); px(c, 6, -13, 1, 1, dark); px(c, 7, -14, 2, 1, dark);
     },
-    frog(c, color, step) { grid(c, GRIDS.frog, step); },
-    monkey(c, color, step) { grid(c, GRIDS.monkey, step); },
+    frog(c, color, step, override) { grid(c, GRIDS.frog, step, override); },
+    monkey(c, color, step, override) { grid(c, GRIDS.monkey, step, override); },
     toucan(c, color, step) {
       const flap = step % 2;
       px(c, -1, -2, 1, 2, "#e08a00"); px(c, 2, -2, 1, 2, "#e08a00"); px(c, -10, -8, 5, 3, "#18181e"); ball(c, -1, -7, 5, "#2a2a34", 0.9);
       ball(c, 2, -10, 2.5, "#fff3c8"); ball(c, -3, flap ? -11 : -7, 3, "#3a3a46", 0.7); ball(c, 3, -13, 3, "#2a2a34");
       px(c, 3, -15, 2, 2, "#7fd6ff"); px(c, 4, -15, 1, 1, "#111"); px(c, 6, -15, 8, 3, color); px(c, 7, -15, 5, 1, shade(color, 70)); px(c, 6, -13, 7, 1, shade(color, -60));
     },
-    parrot(c, color, step) { grid(c, GRIDS.parrot, step); },
-    snake(c, color, step) { grid(c, GRIDS.snake, step); },
-    hummingbird(c, color, step) { grid(c, GRIDS.hummingbird, step); },
-    owl(c, color, step) { grid(c, GRIDS.owl, step); },
+    parrot(c, color, step, override) { grid(c, GRIDS.parrot, step, override); },
+    snake(c, color, step, override) { grid(c, GRIDS.snake, step, override); },
+    hummingbird(c, color, step, override) { grid(c, GRIDS.hummingbird, step, override); },
+    owl(c, color, step, override) { grid(c, GRIDS.owl, step, override); },
     chameleon(c, color, step) {
       const dark = shade(color, -70), mid = shade(color, -30), hi = shade(color, 60), anim = step % 2;
       px(c, -11, -2, 5, 2, mid); px(c, -12, -4, 2, 3, dark); px(c, -10, -6, 3, 2, dark); px(c, -8, -5, 2, 1, mid);
@@ -439,7 +439,7 @@
     ".....fff..fff.......",
   ];
   const GRIDS = {
-    frog: { bob: -2, pal: { b: "#3fbf4a", l: "#8ae070", d: "#2a8a34", w: "#eaf2b4", e: "#e8302a", k: "#111111", f: "#ff8c1a" }, f0: [
+    frog: { bob: -2, tint: { b: 0, l: 50, d: -30 }, pal: { b: "#3fbf4a", l: "#8ae070", d: "#2a8a34", w: "#eaf2b4", e: "#e8302a", k: "#111111", f: "#ff8c1a" }, f0: [
       ".........ee...",
       "........ekke..",
       "...bbbbbeeeb..",
@@ -451,7 +451,7 @@
       "..ff..fff.ff..",
       "..f...f.f..ff.",
     ] },
-    hummingbird: { pal: { w: "#cfe6f0", l: "#ffffff", b: "#2fae7a", g: "#e8508a", k: "#111111", y: "#2a2a2a", d: "#1f6e50", f: "#333333" }, f0: [
+    hummingbird: { tint: { b: 0, d: -40 }, pal: { w: "#cfe6f0", l: "#ffffff", b: "#2fae7a", g: "#e8508a", k: "#111111", y: "#2a2a2a", d: "#1f6e50", f: "#333333" }, f0: [
       "....ww...........",
       "...wllw..........",
       "...wllw..bbb.....",
@@ -474,8 +474,8 @@
       "...dd.bbb........",
       "..dd...f.........",
     ] },
-    monkey: { bob: -1, pal: { d: "#4a2a14", b: "#7a4a2a", l: "#a87850", f: "#ecc69a", k: "#111111", n: "#3a2010", m: "#b06a50" }, f0: monkeyRows },
-    owl: { pal: { b: "#9a6a3e", d: "#5e3c20", f: "#ead6ae", e: "#ffc83a", k: "#111111", y: "#d89a2a", w: "#f3e6c8", l: "#b88a5a" }, f0: [
+    monkey: { bob: -1, tint: { b: 0, d: -50, l: 40 }, pal: { d: "#4a2a14", b: "#7a4a2a", l: "#a87850", f: "#ecc69a", k: "#111111", n: "#3a2010", m: "#b06a50" }, f0: monkeyRows },
+    owl: { tint: { b: 0, d: -50, l: 30 }, pal: { b: "#9a6a3e", d: "#5e3c20", f: "#ead6ae", e: "#ffc83a", k: "#111111", y: "#d89a2a", w: "#f3e6c8", l: "#b88a5a" }, f0: [
       ".d..........d.",
       ".dd........dd.",
       ".dbbbbbbbbbbd.",
@@ -492,7 +492,7 @@
       "..dbbbbbbbbd..",
       "...yy....yy...",
     ] },
-    parrot: { pal: { r: "#e8382a", y: "#ffcf3a", b: "#2f6fd6", w: "#f4f0e6", k: "#1a1a1a", c: "#efe2c4", f: "#6a6a6a" }, f0: [
+    parrot: { tint: { r: 0 }, pal: { r: "#e8382a", y: "#ffcf3a", b: "#2f6fd6", w: "#f4f0e6", k: "#1a1a1a", c: "#efe2c4", f: "#6a6a6a" }, f0: [
       "......rrr.....",
       ".....rrrrr....",
       "....rrwwkr....",
@@ -512,13 +512,17 @@
       "rbr...........",
       "rr............",
     ] },
-    snake: { pal: { b: "#77823a", l: "#97a250", s: "#2e3014", w: "#d6c27a", k: "#111111", t: "#e0284a" }, f0: snakeRows,
+    snake: { tint: { b: 0, l: 30, s: -70 }, pal: { b: "#77823a", l: "#97a250", s: "#2e3014", w: "#d6c27a", k: "#111111", t: "#e0284a" }, f0: snakeRows,
       f1: snakeRows.map((r, i) => (i === 2 ? r + "tt" : i === 1 ? r + "..t" : i === 3 ? r.slice(0, 22) + "..t" : r)) },
   };
-  function grid(c, G, step) {
+  // override: a custom body colour picked in the UI. Grid sprites have fixed
+  // palettes, so recolour the body letters listed in G.tint (letter -> shade).
+  function grid(c, G, step, override) {
+    let pal = G.pal;
+    if (override && G.tint) { pal = { ...G.pal }; for (const [ch, amt] of Object.entries(G.tint)) pal[ch] = shade(override, amt); }
     const alt = step % 2, rows = (alt && G.f1) || G.f0, w = Math.max(...G.f0.map(r => r.length)), h = rows.length;
     const x0 = -Math.floor(w / 2), y0 = 1 - h + (alt && !G.f1 ? (G.bob || -1) : 0);
-    rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) { const col = G.pal[r[i]]; if (col) px(c, x0 + i, y0 + j, 1, 1, col); } });
+    rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) { const col = pal[r[i]]; if (col) px(c, x0 + i, y0 + j, 1, 1, col); } });
   }
 
   const KINDS = {
@@ -556,7 +560,7 @@
     const k = KINDS[type] || KINDS.frontend, color = colorOverride || k.color, key = `${type}|${step % 2}|${colorOverride || ''}`;
     if (sprites.has(key)) return sprites.get(key);
     const make = () => { const c = document.createElement("canvas"); c.width = SW * RS; c.height = SH * RS; c.getContext("2d").setTransform(RS, 0, 0, RS, 0, 0); return c; };
-    const raw = make(), r = raw.getContext("2d"); r.translate(FX, FY); ANIMALS[k.animal](r, color, step % 2);
+    const raw = make(), r = raw.getContext("2d"); r.translate(FX, FY); ANIMALS[k.animal](r, color, step % 2, colorOverride);
     const sil = make(), sc = sil.getContext("2d"); sc.setTransform(1, 0, 0, 1, 0, 0); sc.drawImage(raw, 0, 0); sc.globalCompositeOperation = "source-in"; sc.fillStyle = OUTLINE; sc.fillRect(0, 0, SW * RS, SH * RS);
     const out = make(), o = out.getContext("2d"); o.setTransform(1, 0, 0, 1, 0, 0);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) o.drawImage(sil, dx * RS, dy * RS);
