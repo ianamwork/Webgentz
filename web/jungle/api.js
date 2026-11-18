@@ -40,16 +40,30 @@ function getJSON(path) {
 export function fetchNotes() { return getJSON('/api/notes?limit=100'); }
 export function fetchDaily(days) { return getJSON('/api/daily?days=' + days); }
 
-// Follow the live stream, reconnecting 3 seconds after any error.
-export function openStream(onMessage, reconnect) {
-  const es = new EventSource(typeof webgentzStreamUrl === 'function' ? webgentzStreamUrl() : '/stream');
-  window.__es = es;
-  es.onmessage = function(e) {
-    try { onMessage(JSON.parse(e.data)); } catch(ex) {}
-  };
-  es.onerror = function() {
-    es.close();
-    window.__es = null;
-    setTimeout(reconnect, 3000);
-  };
+// Follow the live stream with exponential-backoff reconnection (1s→2s→4s, cap 30s).
+// onState is called with 'connecting', 'connected', or 'disconnected'.
+export function openStream(onMessage, onState) {
+  let delay = 1000;
+
+  function tryConnect() {
+    if (onState) onState('connecting');
+    const es = new EventSource(typeof webgentzStreamUrl === 'function' ? webgentzStreamUrl() : '/stream');
+    window.__es = es;
+    es.onopen = function() {
+      delay = 1000;
+      if (onState) onState('connected');
+    };
+    es.onmessage = function(e) {
+      try { onMessage(JSON.parse(e.data)); } catch(ex) {}
+    };
+    es.onerror = function() {
+      es.close();
+      window.__es = null;
+      if (onState) onState('disconnected');
+      setTimeout(tryConnect, delay);
+      delay = Math.min(delay * 2, 30000);
+    };
+  }
+
+  tryConnect();
 }

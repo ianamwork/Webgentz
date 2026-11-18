@@ -7,6 +7,44 @@ import { fetchDaily, fetchNotes, openStream } from './api.js';
 import { render, renderBank, renderLedger, renderQuestLog, renderSettingsPop, scheduleRender } from './render.js';
 import { applyRealTime, mountEngine, syncAgents, world } from './engine.js';
 import { closeLedger, closeModals, closeSheet } from './actions.js';
+import { activeAgents } from './agents.js';
+
+// ===== Stream state + tab title + urgent veil =============================
+
+let _streamState = 'connecting';
+let _streamEverConnected = false;
+
+function updateStatusLine() {
+  const all = activeAgents();
+  const needsYou = all.filter(function(a){ return a.status === 'needs_you'; }).length;
+  const working  = all.filter(function(a){ return a.status === 'working' || a.status === 'stuck'; }).length;
+
+  if (_streamEverConnected && _streamState !== 'connected') {
+    document.title = '○ Webgentz';
+  } else if (needsYou > 0) {
+    document.title = '⚠ (' + needsYou + ') Webgentz';
+  } else if (working > 0) {
+    document.title = '● Webgentz (' + working + ' working)';
+  } else {
+    document.title = 'Webgentz';
+  }
+
+  const stage = document.getElementById('stage');
+  if (stage) stage.classList.toggle('has-urgent', needsYou > 0);
+}
+
+function handleStreamState(state) {
+  _streamState = state;
+  const banner = document.getElementById('offline-banner');
+  if (state === 'connected') {
+    _streamEverConnected = true;
+    if (banner) banner.hidden = true;
+  } else if (_streamEverConnected && banner) {
+    banner.hidden = false;
+    banner.textContent = state === 'connecting' ? 'Reconnecting…' : 'Server offline — retrying…';
+  }
+  updateStatusLine();
+}
 
 // ===== Data layer =========================================================
 
@@ -20,6 +58,7 @@ function receive(msg) {
   }
   syncAgents();
   scheduleRender();
+  updateStatusLine();
 }
 
 function loadBoardNotes() {
@@ -51,7 +90,7 @@ function connect() {
     WebgentzDemo.start(receive);
     return;
   }
-  openStream(receive, connect);
+  openStream(receive, handleStreamState);
 }
 
 // Used to pick day or night when auto time is off.

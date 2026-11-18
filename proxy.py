@@ -37,9 +37,16 @@ PORT = int(os.environ.get("WEBGENTZ_PROXY_PORT", "8766"))
 # provider -> (default upstream, agent_type used for the animal)
 PROVIDERS = {
     "anthropic": ("https://api.anthropic.com", "claude-api"),
-    "openai": ("https://api.openai.com", "openai"),
-    "xai": ("https://api.x.ai", "grok"),
-    "gemini": ("https://generativelanguage.googleapis.com", "gemini"),
+    "openai":    ("https://api.openai.com",    "openai"),
+    "xai":       ("https://api.x.ai",          "grok"),
+    "gemini":    ("https://generativelanguage.googleapis.com", "gemini"),
+    # Local / self-hosted models (OpenAI-compatible). Override upstream with
+    # WEBGENTZ_UPSTREAM_OLLAMA or WEBGENTZ_UPSTREAM_LMSTUDIO env vars.
+    "ollama":    ("http://127.0.0.1:11434",    "ollama"),
+    "lm-studio": ("http://127.0.0.1:1234",     "lm-studio"),
+    # Third-party providers — set the upstream via env var when known.
+    "muse":      ("https://api.muse.meta.com", "muse"),
+    "instinct":  ("https://api.instinct.ai",   "instinct"),
 }
 
 # Headers that belong to one connection and must not be passed along.

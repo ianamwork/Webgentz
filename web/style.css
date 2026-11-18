@@ -813,8 +813,10 @@ button:active { filter: brightness(0.92); }
 /* Status changes: one soft ring when an agent starts needing you or finishes.
    Panels are patched in place, so this plays when the class changes, not on
    every update. */
-.st-needs_you, .need-badge { --ping: rgba(255,210,63,0.75); animation: wg-ping var(--dur-3) var(--ease-out) 2; }
-.st-done                   { --ping: rgba(63,191,106,0.75); animation: wg-ping var(--dur-3) var(--ease-out) 2; }
+/* need-badge: two alert pings when count first appears. Status tag: continuous pulse while waiting. */
+.need-badge   { --ping: rgba(255,210,63,0.75); animation: wg-ping var(--dur-3) var(--ease-out) 2; }
+.st-needs_you { --ping: rgba(255,210,63,0.75); animation: wg-ping 1.6s ease-in-out infinite alternate; }
+.st-done      { --ping: rgba(63,191,106,0.75); animation: wg-ping var(--dur-3) var(--ease-out) 2; }
 
 /* Hover and press feedback, now that elements survive updates */
 button {
@@ -824,6 +826,29 @@ button {
               filter var(--dur-1) var(--ease-out);
 }
 .roster-row, .bank-row, .chat-ch-btn { transition: background-color var(--dur-1) var(--ease-out); }
+
+/* ===== Offline / reconnecting banner ===================================== */
+/* Only visible after the first successful connect is lost. */
+#offline-banner {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 999;
+  padding: 5px var(--s-4);
+  background: rgba(29,45,61,0.92);
+  color: var(--color-accent-200);
+  font: 500 var(--t-sm)/1.4 var(--font-body);
+  text-align: center;
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid rgba(197,212,227,0.2);
+  animation: wg-drop-in var(--dur-2) var(--ease-out);
+}
+
+/* ===== Urgent veil: golden vignette that pulses when any agent needs you = */
+@keyframes wg-urgent-veil {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(255,210,63,0); }
+  50%       { box-shadow: inset 0 0 80px 20px rgba(255,210,63,0.12); }
+}
+#stage.has-urgent { animation: wg-urgent-veil 2.5s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
