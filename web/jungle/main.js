@@ -6,7 +6,7 @@ import { S, upsert } from './state.js';
 import { fetchDaily, fetchNotes, openStream } from './api.js';
 import { render, renderBank, renderLedger, renderQuestLog, renderSettingsPop, scheduleRender } from './render.js';
 import { applyRealTime, mountEngine, syncAgents, world } from './engine.js';
-import { closeLedger, closeModals, closeSheet } from './actions.js';
+import { closeLedger, closeModals, closeSheet, toggleFocusMode } from './actions.js';
 import { activeAgents } from './agents.js';
 
 // ===== Stream state + tab title + urgent veil =============================
@@ -151,9 +151,20 @@ document.addEventListener('pointerdown', function(e) {
   }
 }, true);
 
-// ===== Escape key ========================================================
+// ===== Keyboard shortcuts =================================================
 document.addEventListener('keydown', function(e) {
+  // F = toggle theater / focus mode (not when typing in an input)
+  if (e.key === 'f' || e.key === 'F') {
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      const tag = document.activeElement && document.activeElement.tagName;
+      if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        toggleFocusMode();
+        return;
+      }
+    }
+  }
   if (e.key !== 'Escape') return;
+  if (S.focusMode) { toggleFocusMode(); return; }
   if (S.selectedId) { closeSheet(); return; }
   if (S.questsOpen || S.bankOpen) { closeModals(); return; }
   if (S.ledgerOpen) closeLedger();

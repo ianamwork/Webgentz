@@ -4,7 +4,7 @@ import { LAYER_LABEL } from './constants.js';
 import { el } from './format.js';
 import { S, closeHudPopups, upsert } from './state.js';
 import { agentAction, postApproval, postNote, postOpen } from './api.js';
-import { render, renderAgentSheet, renderBank, renderLayerLabels, renderSettingsPop, renderTheme } from './render.js';
+import { render, renderAgentSheet, renderBank, renderHUD, renderLayerLabels, renderSettingsPop, renderTheme } from './render.js';
 import { syncAgents, world } from './engine.js';
 import { setShown } from './motion.js';
 
@@ -113,6 +113,23 @@ export function setShowNames(v) {
   renderSettingsPop();
 }
 
+export function toggleFocusMode() {
+  S.focusMode = !S.focusMode;
+  const stage = document.getElementById('stage');
+  if (stage) stage.classList.toggle('focus-mode', S.focusMode);
+  if (S.focusMode) {
+    // Close all open panels when entering focus mode
+    S.selectedId = null;
+    S.settingsOpen = false;
+    S.ledgerOpen = false;
+    S.questsOpen = false;
+    S.bankOpen = false;
+    setShown(el('modal-back'), false);
+    renderSettingsPop();
+  }
+  renderHUD();
+}
+
 export function toggleSect(k) { S.sectOpen[k] = !S.sectOpen[k]; renderAgentSheet(); }
 
 export function setMeasure(m) { S.measure = m; renderBank(); }
@@ -137,5 +154,5 @@ Object.assign(window, {
   customizeAgent, dismissAgent, jumpTo, openAgentApp, openBank, openLedger,
   openQuests, postBoardNote, resolveAgent, saveLayerName, selectAgent,
   setChannel, setDarkOverride, setLedgerTab, setMeasure, setShowNames, setTimeOfDay,
-  startRenameLayer, toggleCustomPanel, toggleSect, toggleSettings,
+  startRenameLayer, toggleCustomPanel, toggleFocusMode, toggleSect, toggleSettings,
 });

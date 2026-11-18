@@ -30,6 +30,7 @@ export const S = {
   customs: {},
   customPanel: null,
   showNames: localStorage.getItem('webgentz.showNames') !== 'false',
+  focusMode: false,
 };
 
 export function upsert(a) {

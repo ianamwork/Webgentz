@@ -90,6 +90,9 @@ export function renderHUD() {
       '<button class="btn-bp hud-btn" id="btn-settings" aria-label="Settings" aria-expanded="' + S.settingsOpen + '" onclick="toggleSettings()">' +
         BP + SVG.gear + '<span id="hud-clock">' + clock(S.hour) + '</span>' +
       '</button>' +
+      '<button class="btn-bp btn-focus" id="btn-focus" aria-label="' + (S.focusMode ? 'Exit theater mode' : 'Theater mode') + '" title="Theater mode (F)" onclick="toggleFocusMode()">' +
+        BP + (S.focusMode ? SVG.compress : SVG.expand) +
+      '</button>' +
       '<button class="btn-bp btn-quest" id="btn-quest" onclick="openQuests()">' +
         BP + SVG.scroll + '<span class="btn-quest-label">Quest Board</span>' +
         (needsYou > 0 ? '<span class="need-badge" data-key="badge">' + needsYou + ' need you</span>' : '') +
