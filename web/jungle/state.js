@@ -29,6 +29,7 @@ export const S = {
   sectOpen: {},
   customs: {},
   customPanel: null,
+  showNames: localStorage.getItem('webgentz.showNames') !== 'false',
 };
 
 export function upsert(a) {

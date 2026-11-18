@@ -3,7 +3,7 @@
 // real-time clock.
 import { autoHour, clock, el } from './format.js';
 import { S, closeHudPopups } from './state.js';
-import { activeAgents, toEngineAgent } from './agents.js';
+import { activeAgents, shortName, toEngineAgent } from './agents.js';
 import { postOpen } from './api.js';
 import { setShown } from './motion.js';
 import { renderAgentSheet, renderBank, renderBankTip, renderBoardTip, renderHoverCard, renderQuestLog, renderSettingsPop, renderTheme } from './render.js';
@@ -89,6 +89,54 @@ export function mountEngine() {
   });
   syncAgents();
   layoutWorld();
+  startLabels();
+}
+
+// ===== Persistent name labels over canvas =================================
+// HTML chips positioned absolutely over the canvas, updated at ~10fps so they
+// follow agents smoothly without blocking the 60fps canvas render loop.
+let _labelsTimer = 0;
+export function startLabels() {
+  if (_labelsTimer) clearInterval(_labelsTimer);
+  const container = document.getElementById('canvas-labels');
+  const canvas = document.getElementById('world');
+  if (!container || !canvas) return;
+
+  const chips = new Map();
+
+  _labelsTimer = setInterval(function() {
+    if (!world) return;
+    const positions = world.positions();
+    const agents = activeAgents();
+    const seen = new Set();
+
+    for (const a of agents) {
+      seen.add(a.id);
+      let chip = chips.get(a.id);
+      if (!chip) {
+        chip = document.createElement('span');
+        chip.className = 'canvas-name-chip';
+        container.appendChild(chip);
+        chips.set(a.id, chip);
+      }
+      chip.hidden = !S.showNames;
+
+      const pos = positions[a.id];
+      if (pos && canvas.offsetWidth) {
+        const x = canvas.offsetLeft + pos.x * canvas.offsetWidth;
+        const y = canvas.offsetTop + pos.y * canvas.offsetHeight;
+        chip.style.transform = 'translate(calc(' + x + 'px - 50%), calc(' + y + 'px - 100% - 18px))';
+      }
+
+      const text = (a.project || shortName(a.name) || '').slice(0, 16);
+      if (chip.textContent !== text) chip.textContent = text;
+      chip.dataset.status = a.status || '';
+    }
+
+    for (const [id, chip] of chips) {
+      if (!seen.has(id)) { chip.remove(); chips.delete(id); }
+    }
+  }, 100);
 }
 
 // ===== Fitting the world to the window ====================================

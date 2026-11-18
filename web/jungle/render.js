@@ -126,7 +126,10 @@ export function renderSettingsPop() {
     seg([['Light', 'setDarkOverride(false)', !isDark], ['Dark', 'setDarkOverride(true)', isDark]]) +
     '<div class="pop-rule"></div>' +
     '<span class="lbl">Time of day</span>' +
-    seg([['Day', 'setTimeOfDay(false)', !isNight], ['Night', 'setTimeOfDay(true)', isNight]]));
+    seg([['Day', 'setTimeOfDay(false)', !isNight], ['Night', 'setTimeOfDay(true)', isNight]]) +
+    '<div class="pop-rule"></div>' +
+    '<span class="lbl">Agent names</span>' +
+    seg([['Show', 'setShowNames(true)', S.showNames], ['Hide', 'setShowNames(false)', !S.showNames]]));
 }
 
 export function renderHoverCard() {

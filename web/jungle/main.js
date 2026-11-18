@@ -31,6 +31,25 @@ function updateStatusLine() {
 
   const stage = document.getElementById('stage');
   if (stage) stage.classList.toggle('has-urgent', needsYou > 0);
+
+  // Activity ticker: show the most recently active agent's current task
+  const ticker = document.getElementById('activity-ticker');
+  if (ticker) {
+    const busy = all
+      .filter(function(a){ return a.status === 'working' || a.status === 'needs_you' || a.status === 'stuck'; })
+      .sort(function(a, b){ return (b.last_seen || 0) - (a.last_seen || 0); });
+    const src = busy[0] || all.sort(function(a, b){ return (b.last_seen || 0) - (a.last_seen || 0); })[0];
+    if (src) {
+      const proj = src.project || src.name || '';
+      const act  = src.activity || '';
+      const det  = src.detail   || '';
+      const text = proj + (act ? ' · ' + act : '') + (det && det !== act ? ' ' + det : '');
+      ticker.hidden = false;
+      if (ticker.textContent !== text) ticker.textContent = text;
+    } else {
+      ticker.hidden = true;
+    }
+  }
 }
 
 function handleStreamState(state) {

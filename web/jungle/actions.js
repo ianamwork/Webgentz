@@ -107,6 +107,12 @@ export function setTimeOfDay(night) { S.auto = false; if (world) world.setHour(n
 
 export function setDarkOverride(dark) { S.darkOverride = dark; renderSettingsPop(); renderTheme(); }
 
+export function setShowNames(v) {
+  S.showNames = !!v;
+  localStorage.setItem('webgentz.showNames', S.showNames);
+  renderSettingsPop();
+}
+
 export function toggleSect(k) { S.sectOpen[k] = !S.sectOpen[k]; renderAgentSheet(); }
 
 export function setMeasure(m) { S.measure = m; renderBank(); }
@@ -130,6 +136,6 @@ Object.assign(window, {
   cancelRenameLayer, closeAgentTerminal, closeLedger, closeModals, closeSheet,
   customizeAgent, dismissAgent, jumpTo, openAgentApp, openBank, openLedger,
   openQuests, postBoardNote, resolveAgent, saveLayerName, selectAgent,
-  setChannel, setDarkOverride, setLedgerTab, setMeasure, setTimeOfDay,
+  setChannel, setDarkOverride, setLedgerTab, setMeasure, setShowNames, setTimeOfDay,
   startRenameLayer, toggleCustomPanel, toggleSect, toggleSettings,
 });
