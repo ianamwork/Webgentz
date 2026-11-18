@@ -31,12 +31,15 @@ export const S = {
   customPanel: null,
   showNames: localStorage.getItem('webgentz.showNames') !== 'false',
   focusMode: false,
+  soundOn: localStorage.getItem('webgentz.soundOn') === 'true',
 };
 
 export function upsert(a) {
   const existing = S.agents.get(a.id) || {};
+  const prevStatus = existing.status;
   const merged = Object.assign({}, existing, a);
   S.agents.set(a.id, merged);
+  if (a.status && a.status !== prevStatus) upsert._transitions.push({ id: a.id, from: prevStatus, to: a.status });
   const recent = a.recent || [];
   for (const r of recent) {
     const t = r.time || r.t || 0;
@@ -47,5 +50,7 @@ export function upsert(a) {
   S.messages.sort(function(a,b){ return (a.time||a.t||0) - (b.time||b.t||0); });
   if (S.messages.length > 1000) S.messages = S.messages.slice(-500);
 }
+
+upsert._transitions = [];
 
 export function closeHudPopups() { S.ledgerOpen = false; }

@@ -132,7 +132,10 @@ export function renderSettingsPop() {
     seg([['Day', 'setTimeOfDay(false)', !isNight], ['Night', 'setTimeOfDay(true)', isNight]]) +
     '<div class="pop-rule"></div>' +
     '<span class="lbl">Agent names</span>' +
-    seg([['Show', 'setShowNames(true)', S.showNames], ['Hide', 'setShowNames(false)', !S.showNames]]));
+    seg([['Show', 'setShowNames(true)', S.showNames], ['Hide', 'setShowNames(false)', !S.showNames]]) +
+    '<div class="pop-rule"></div>' +
+    '<span class="lbl">Sounds</span>' +
+    seg([['On', 'setSoundOn(true)', S.soundOn], ['Off', 'setSoundOn(false)', !S.soundOn]]));
 }
 
 export function renderHoverCard() {

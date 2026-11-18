@@ -113,6 +113,12 @@ export function setShowNames(v) {
   renderSettingsPop();
 }
 
+export function setSoundOn(v) {
+  S.soundOn = !!v;
+  localStorage.setItem('webgentz.soundOn', S.soundOn);
+  renderSettingsPop();
+}
+
 export function toggleFocusMode() {
   S.focusMode = !S.focusMode;
   const stage = document.getElementById('stage');
@@ -154,5 +160,5 @@ Object.assign(window, {
   customizeAgent, dismissAgent, jumpTo, openAgentApp, openBank, openLedger,
   openQuests, postBoardNote, resolveAgent, saveLayerName, selectAgent,
   setChannel, setDarkOverride, setLedgerTab, setMeasure, setShowNames, setTimeOfDay,
-  startRenameLayer, toggleCustomPanel, toggleFocusMode, toggleSect, toggleSettings,
+  setSoundOn, startRenameLayer, toggleCustomPanel, toggleFocusMode, toggleSect, toggleSettings,
 });

@@ -8,6 +8,7 @@ import { render, renderBank, renderLedger, renderQuestLog, renderSettingsPop, sc
 import { applyRealTime, mountEngine, syncAgents, world } from './engine.js';
 import { closeLedger, closeModals, closeSheet, toggleFocusMode } from './actions.js';
 import { activeAgents } from './agents.js';
+import { playDone, playNeedsYou } from './sounds.js';
 
 // ===== Stream state + tab title + urgent veil =============================
 
@@ -75,6 +76,18 @@ function receive(msg) {
   } else if (msg.type === 'note' && msg.note) {
     if (!S.boardNotes.some(function(n){ return n.received === msg.note.received && n.text === msg.note.text; })) S.boardNotes.push(msg.note);
   }
+
+  if (S.soundOn && upsert._transitions.length) {
+    let needsYou = false, done = false;
+    for (const t of upsert._transitions) {
+      if (t.to === 'needs_you') needsYou = true;
+      if (t.to === 'idle' && t.from === 'working') done = true;
+    }
+    if (needsYou) playNeedsYou();
+    else if (done) playDone();
+  }
+  upsert._transitions.length = 0;
+
   syncAgents();
   scheduleRender();
   updateStatusLine();
