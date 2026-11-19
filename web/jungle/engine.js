@@ -125,7 +125,11 @@ export function startLabels() {
       if (pos && canvas.offsetWidth) {
         const x = canvas.offsetLeft + pos.x * canvas.offsetWidth;
         const y = canvas.offsetTop + pos.y * canvas.offsetHeight;
-        chip.style.transform = 'translate(calc(' + x + 'px - 50%), calc(' + y + 'px - 100% - 18px))';
+        // Scale the offset with the canvas: 20 canvas-px covers the tallest sprite,
+        // plus 5px breathing room, converted to CSS pixels.
+        const scale = canvas.offsetHeight / (window.JungleEngine ? window.JungleEngine.H : 432);
+        const offset = Math.ceil(20 * scale) + 5;
+        chip.style.transform = 'translate(calc(' + x + 'px - 50%), calc(' + y + 'px - 100% - ' + offset + 'px))';
       }
 
       const text = (a.project || shortName(a.name) || '').slice(0, 16);
