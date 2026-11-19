@@ -64,6 +64,7 @@ class AgentTests(unittest.TestCase):
                 agent.done()
         finally:
             httpd.shutdown()
+            httpd.server_close()
 
         kinds = [e["event"] for e in received]
         self.assertEqual(kinds, ["start", "prompt", "tool_start", "tool_end", "tool_end", "needs_you", "done", "end"])

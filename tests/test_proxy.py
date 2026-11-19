@@ -89,6 +89,7 @@ class ProxyTests(unittest.TestCase):
     def tearDownClass(cls):
         for s in (cls.jungle, cls.provider, cls.proxy):
             s.shutdown()
+            s.server_close()
 
     def call(self, path, body, headers=None):
         req = urllib.request.Request(self.proxy_url + path, data=json.dumps(body).encode(),

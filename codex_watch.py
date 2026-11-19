@@ -9,6 +9,8 @@ what Codex does into jungle events: new tasks, tool calls, and token totals.
 Keep it running next to server.py (or install it with autostart.py). Codex
 does not write approval requests to its log, so Codex agents never show the
 "needs you" state; everything else works.
+
+If the jungle server has WEBGENTZ_TOKEN set, set the same WEBGENTZ_TOKEN here.
 """
 
 import glob
